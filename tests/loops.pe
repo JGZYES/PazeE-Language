@@ -1,0 +1,47 @@
+// loops.pe — 验证 while / do-while / for / 嵌套循环 / break / continue
+int main(void)
+{
+    // while 累加 1..100
+    int sum = 0;
+    int i = 1;
+    while (i <= 100) {
+        sum += i;
+        i++;
+    }
+    printf("sum(1..100) = %d\n", sum);        // 5050
+
+    // do-while 阶乘
+    int n = 5;
+    int fact = 1;
+    do {
+        fact *= n;
+        n--;
+    } while (n > 0);
+    printf("5! = %d\n", fact);                 // 120
+
+    // 嵌套 for + break/continue：收集 a==b 时的 a*b
+    int diag = 0;
+    for (int a = 1; a <= 3; a++) {
+        for (int b = 1; b <= 3; b++) {
+            if (a == b) { diag += a * b; continue; }
+            if (a + b > 5) break;
+        }
+    }
+    printf("diag = %d\n", diag);               // 1+4+9 = 14
+
+    // continue 跳过偶数，累加奇数
+    int oddsum = 0;
+    for (int k = 0; k < 10; k++) {
+        if (k % 2 == 0) continue;
+        oddsum += k;
+    }
+    printf("oddsum = %d\n", oddsum);           // 1+3+5+7+9 = 25
+
+    // do-while 至少执行一次（条件初值即假）
+    int once = 0;
+    int z = 10;
+    do { once++; } while (z < 0);
+    printf("once = %d\n", once);               // 1
+
+    return 0;
+}

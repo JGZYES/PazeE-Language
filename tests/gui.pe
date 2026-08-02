@@ -1,0 +1,26 @@
+/* GUI 测试：创建窗口显示文字，按任意键或关闭窗口退出 */
+struct gui_event { int type, key, mouse_x, mouse_y, button, window_id; };
+int gui_init(void);
+int gui_window_create(const char *title, int width, int height);
+int gui_window_text(int win, int x, int y, const char *text, unsigned int fg, unsigned int bg);
+int gui_event_wait(struct gui_event *ev, int timeout_ms);
+int gui_window_destroy(int win);
+
+int main(void) {
+    if (gui_init() < 0) return 1;
+    if (gui_window_create("PazeE GUI Demo", 480, 320) < 0) return 1;
+
+    /* 显示文字：黑底绿字 */
+    gui_window_text(0, 60, 80, "Hello from PazeE!", 0x00FF00, 0x000000);
+    gui_window_text(0, 60, 120, "Press any key or close to exit", 0xFFFFFF, 0x000000);
+
+    struct gui_event ev;
+    while (1) {
+        gui_event_wait(&ev, 0);
+        if (ev.type == 4 || ev.type == 1) break;  /* quit or close */
+        if (ev.type == 2) break;                   /* key down */
+    }
+
+    gui_window_destroy(0);
+    return 0;
+}

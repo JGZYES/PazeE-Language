@@ -1,0 +1,15 @@
+int main(void) {
+    long c1 = color.red;
+    long c2 = color.255.0.0;
+    long c3 = color.green;
+    long c4 = color.0.0.255;
+    long c5 = color.white;
+    long c6 = color.128.64.192;
+    printf("red      = %x\n", c1);
+    printf("255.0.0  = %x\n", c2);
+    printf("green    = %x\n", c3);
+    printf("0.0.255  = %x\n", c4);
+    printf("white    = %x\n", c5);
+    printf("128.64.192 = %x\n", c6);
+    return 0;
+}

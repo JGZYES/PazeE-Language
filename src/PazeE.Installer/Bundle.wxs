@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+
+  <!-- Bundle 独立 UpgradeCode（与 MSI 不同），用于 .exe 自身升级识别 -->
+  <?define BundleUpgradeCode = "D7E3B1F4-2A5C-4E89-B16F-3C8D9E2A7B41" ?>
+
+  <Bundle
+      Name="PazeE Language $(var.PazeEVersion)"
+      Manufacturer="PazeE Project"
+      Version="$(var.MsiVersion)"
+      UpgradeCode="$(var.BundleUpgradeCode)"
+      AboutUrl="https://github.com/PazeE/paze"
+      IconSourceFile="logo.ico">
+
+    <!-- WixStdBA：hyperlinkLicense 主题，用 LicenseUrl 免外部 license.rtf 文件 -->
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication
+          LicenseUrl="https://github.com/PazeE/paze"
+          Theme="hyperlinkLicense"
+          ShowVersion="yes" />
+    </BootstrapperApplication>
+
+    <Chain>
+      <!-- 把 MSI 嵌入 .exe（Compressed 默认 yes），强制 per-machine 安装 -->
+      <MsiPackage
+          SourceFile="$(var.MsiTargetPath)"
+          ForcePerMachine="yes"
+          Vital="yes" />
+    </Chain>
+  </Bundle>
+
+</Wix>

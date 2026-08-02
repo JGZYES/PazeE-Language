@@ -1,0 +1,19 @@
+// sprintf_test.pe — 测试 sprintf 功能
+int main(void)
+{
+    char buf[128];
+
+    sprintf(buf, "Hello %s!", "LeonOS 4");
+    printf("%s\n", buf);
+
+    sprintf(buf, "%d + %d = %d", 3, 4, 7);
+    printf("%s\n", buf);
+
+    sprintf(buf, "hex: %x, char: %c%c%c", 255, 'A', 'B', 'C');
+    printf("%s\n", buf);
+
+    sprintf(buf, "negative: %d", -42);
+    printf("%s\n", buf);
+
+    return 0;
+}

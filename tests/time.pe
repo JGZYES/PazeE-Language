@@ -1,0 +1,16 @@
+/* 时间 API 测试：time_get_utc() 默认 UTC+8，time_get_tm 拆分日期时间 */
+int printf(const char *fmt, ...);
+struct paze_tm { int year, month, day, hour, minute, second, weekday; };
+long long time_get_utc(void);
+void time_get_tm(struct paze_tm *out);
+
+int main(void) {
+    long long t = time_get_utc();
+    printf("utc+8 unix seconds: %d\n", (int)t);
+
+    struct paze_tm tm;
+    time_get_tm(&tm);
+    printf("date: %d-%d-%d %d:%d:%d weekday=%d\n",
+        tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second, tm.weekday);
+    return 0;
+}

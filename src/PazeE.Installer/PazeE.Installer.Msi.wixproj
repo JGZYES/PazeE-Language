@@ -1,0 +1,41 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <PropertyGroup>
+    <OutputName>PazeE-0.1.0-alpha-win-x64</OutputName>
+    <OutputType>Package</OutputType>
+    <!-- MSI 作为中间产物输出到 obj（不单独发布，仅供 Bundle 内嵌） -->
+    <OutputPath>obj\Release\</OutputPath>
+    <!-- MSBuild 属性（供 HarvestDirectory 引用） -->
+    <PublishBinDir>..\..\publish\0.1.0-alpha\bin</PublishBinDir>
+    <!-- 同时作为 WiX 预处理器变量传入 .wxs -->
+    <DefineConstants>PazeEVersion=0.1.0-alpha;MsiVersion=0.1.0;PublishBinDir=$(PublishBinDir)</DefineConstants>
+    <!-- x64 平台：使 heat 生成的组件标记为 64 位，匹配 ProgramFiles64Folder -->
+    <Platform>x64</Platform>
+    <!-- 抑制 .NET 自包含运行时常见的 ICE 校验警告 -->
+    <SuppressIces>ICE60;ICE61</SuppressIces>
+    <TreatValidationWarningsAsErrors>false</TreatValidationWarningsAsErrors>
+    <!-- 两个项目共享同一目录：排除 Bundle.wxs，SDK 自动包含 Product.wxs + heat 生成文件 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Bundle.wxs</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- heat 任务宿主：提供 HarvestDirectory item 处理 -->
+    <PackageReference Include="WixToolset.Heat" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 自动收割 publish\0.1.0-alpha\bin 下全部文件为 ComponentGroup -->
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\$(PublishBinDir)">
+      <ComponentGroupName>PazeEBinFiles</ComponentGroupName>
+      <DirectoryRefId>INSTALLFOLDER</DirectoryRefId>
+      <PreprocessorVariable>var.PublishBinDir</PreprocessorVariable>
+      <SuppressCom>true</SuppressCom>
+      <SuppressRegistry>true</SuppressRegistry>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <KeepEmptyDirectories>false</KeepEmptyDirectories>
+      <AutogenerateGuids>true</AutogenerateGuids>
+      <GenerateGuidsNow>true</GenerateGuidsNow>
+    </HarvestDirectory>
+  </ItemGroup>
+
+</Project>

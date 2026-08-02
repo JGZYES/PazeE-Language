@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PazeE.Compiler/PazeE.Compiler.csproj" />
+    <Project Path="src/PazeE.Installer/PazeE.Installer.Msi.wixproj" />
+    <Project Path="src/PazeE.Installer/PazeE.Installer.Bundle.wixproj" />
+  </Folder>
+</Solution>

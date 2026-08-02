@@ -1,0 +1,66 @@
+// stmtexpr_typeof.pe — 语句表达式 + typeof 测试
+// 验证 GNU 扩展 ({...}) 与 typeof，支撑 Linux 宏风格的安全代码
+
+// offsetof：标准定义，借助 & 和成员访问
+#define offsetof(type, member) ((unsigned long)&(((type *)0)->member))
+
+// 安全的 max 宏：基于语句表达式 + typeof，避免双重求值
+#define max(a, b) ({          \
+    typeof(a) _a = (a);       \
+    typeof(b) _b = (b);       \
+    _a > _b ? _a : _b;        \
+})
+
+#define min(a, b) ({          \
+    typeof(a) _a = (a);       \
+    typeof(b) _b = (b);       \
+    _a < _b ? _a : _b;        \
+})
+
+// container_of：Linux 内核经典宏，借助 typeof 推导成员指针类型
+#define container_of(ptr, type, member) ({          \
+    typeof(((type *)0)->member) *_mptr = (ptr);      \
+    (type *)((char *)_mptr - offsetof(type, member)); \
+})
+
+struct Node {
+    int  value;
+    char name[16];
+};
+
+int main(void)
+{
+    // 1. max/min 基本使用
+    printf("max(3,7)=%d\n", max(3, 7));
+    printf("min(3,7)=%d\n", min(3, 7));
+
+    // 2. max 不双重求值（副作用只触发一次）
+    int counter = 0;
+    int r = max(++counter, 10);
+    printf("r=%d counter=%d (expect counter=1)\n", r, counter);
+
+    // 3. max 支持不同数值类型（typeof 推导）
+    long big = 1000000;
+    int  small = 5;
+    printf("max(long,int)=%d\n", max(big, small));
+
+    // 4. 语句表达式作为表达式求值
+    int sq = ({
+        int x = 5;
+        x * x;
+    });
+    printf("sq=%d (expect 25)\n", sq);
+
+    // 5. typeof 声明变量
+    typeof(big) another = 42;
+    printf("typeof(long) var=%d\n", another);
+
+    // 6. container_of
+    struct Node n;
+    n.value = 99;
+    char *member_ptr = n.name;            // name 成员的地址
+    struct Node *back = container_of(member_ptr, struct Node, name);
+    printf("container_of -> value=%d\n", back->value);
+
+    return 0;
+}

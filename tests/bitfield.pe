@@ -1,0 +1,66 @@
+// bitfield.pe — 位域 bit-field 测试
+// 验证位域的打包布局、读写、跨字节位域、符号扩展与零宽对齐
+
+struct Flags {
+    unsigned a : 4;     // 0..3 位
+    unsigned b : 4;     // 4..7 位（与 a 共享同一字节）
+    unsigned c : 8;     // 8..15 位（独立字节）
+    unsigned d : 16;    // 16..31 位（跨字节）
+    int          e : 5; // 32..36 位，有符号位域（-16..15）
+    int          f : 0; // 零宽：强制后续从下一个存储单元对齐
+    unsigned g : 3;     // 新的 32 位单元起始
+};
+
+struct Packed {
+    unsigned bit0 : 1;
+    unsigned bit1 : 1;
+    unsigned bit2 : 1;
+    unsigned bit3 : 1;
+    unsigned rest : 4;
+};
+
+int main(void)
+{
+    // 1. 位域赋值与读取
+    struct Flags fl;
+    fl.a = 0xF;     // 4 位最大
+    fl.b = 0xA;
+    fl.c = 0x5A;
+    fl.d = 0xBEEF;
+    fl.e = -7;      // 有符号位域
+    fl.g = 5;
+
+    printf("a=%u b=%u c=%u d=%u\n", fl.a, fl.b, fl.c, fl.d);
+    printf("e=%d g=%u\n", fl.e, fl.g);
+    printf("sizeof(Flags)=%d\n", sizeof(struct Flags));
+
+    // 2. 修改单个位域不影响其它位域
+    fl.a = 3;
+    fl.b = 12;
+    fl.c = 200;
+    fl.d = 1;
+    printf("after mod: a=%u b=%u c=%u d=%u e=%d g=%u\n",
+           fl.a, fl.b, fl.c, fl.d, fl.e, fl.g);
+
+    // 3. 单位 packed 测试
+    struct Packed p;
+    p.bit0 = 1;
+    p.bit1 = 0;
+    p.bit2 = 1;
+    p.bit3 = 1;
+    p.rest = 10;
+    printf("bits: %u%u%u%u rest=%u\n", p.bit0, p.bit1, p.bit2, p.bit3, p.rest);
+    printf("sizeof(Packed)=%d\n", sizeof(struct Packed));
+
+    // 4. 位域溢出截断
+    p.rest = 0xFF;   // 4 位只能存低 4 位
+    printf("overflow rest=%u (expect 15)\n", p.rest);
+
+    // 5. 有符号位域符号扩展
+    fl.e = 15;       // 最大正数
+    printf("e=15 -> %d\n", fl.e);
+    fl.e = 16;       // 溢出 -> -16
+    printf("e=16 -> %d (expect -16)\n", fl.e);
+
+    return 0;
+}

@@ -1,0 +1,19 @@
+# 统一行尾：文本文件在仓库中用 LF，检出时按平台转换
+* text=auto eol=lf
+
+# Windows 专属文件保留 CRLF
+*.ps1    text eol=crlf
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.wxs    text eol=crlf
+*.wixproj text eol=crlf
+*.csproj text eol=crlf
+*.slnx   text eol=crlf
+
+# 二进制文件（显式标记，不做行尾转换）
+*.png    binary
+*.ico    binary
+*.elf    binary
+*.a      binary
+*.psf    binary
+*.inc    binary

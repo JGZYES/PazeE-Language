@@ -1,0 +1,68 @@
+/* Windows GUI 综合测试：多色文字、鼠标点击反馈、按键显示 */
+struct gui_event { int type, key, mouse_x, mouse_y, button, window_id; };
+int gui_init(void);
+int gui_window_create(const char *title, int width, int height);
+int gui_window_text(int win, int x, int y, const char *text, unsigned int fg, unsigned int bg);
+int gui_window_present(int win);
+int gui_event_poll(struct gui_event *ev);
+int gui_event_wait(struct gui_event *ev, int timeout_ms);
+int gui_window_destroy(int win);
+int gui_cleanup(void);
+
+/* sprintf 用于格式化动态文字 */
+int sprintf(char *buf, const char *fmt, ...);
+unsigned long strlen(const char *s);
+
+int main(void) {
+    if (gui_init() < 0) return 1;
+    if (gui_window_create("PazeE Windows GUI Test", 600, 400) < 0) return 1;
+
+    /* 标题行 — 亮白色 */
+    gui_window_text(0, 140, 30, "=== PazeE GUI Demo ===", 0xFFFFFF, 0x000000);
+
+    /* 多彩文字行 */
+    gui_window_text(0, 40, 70, "Red line",     0xFF0000, 0x000000);
+    gui_window_text(0, 40, 95, "Green line",   0x00FF00, 0x000000);
+    gui_window_text(0, 40, 120, "Blue line",    0x00AAFF, 0x000000);
+    gui_window_text(0, 40, 145, "Yellow line",  0xFFFF00, 0x000000);
+    gui_window_text(0, 40, 170, "Magenta line", 0xFF00FF, 0x000000);
+    gui_window_text(0, 40, 195, "Cyan line",    0x00FFFF, 0x000000);
+
+    /* 操作提示 — 灰色 */
+    gui_window_text(0, 40, 240, "Click anywhere or press any key", 0xAAAAAA, 0x000000);
+    gui_window_text(0, 40, 265, "ESC to quit", 0xAAAAAA, 0x000000);
+
+    /* 状态行缓冲 */
+    char status[128];
+    char keyName[64];
+
+    struct gui_event ev;
+    int clickCount = 0;
+    int running = 1;
+
+    while (running) {
+        /* 用 poll 非阻塞轮询，保持 UI 响应 */
+        if (gui_event_poll(&ev)) {
+            if (ev.type == 1 || ev.type == 4) {
+                /* 窗口关闭或退出 */
+                running = 0;
+            } else if (ev.type == 2) {
+                /* 按键事件：显示 keyCode */
+                sprintf(keyName, "Key pressed: code=%d", ev.key);
+                gui_window_text(0, 40, 310, keyName, 0x00FF00, 0x000000);
+
+                /* ESC (keyCode 27) 退出 */
+                if (ev.key == 27) running = 0;
+            } else if (ev.type == 3) {
+                /* 鼠标点击：显示坐标和点击次数 */
+                clickCount = clickCount + 1;
+                sprintf(status, "Click #%d at (%d, %d) button=%d",
+                        clickCount, ev.mouse_x, ev.mouse_y, ev.button);
+                gui_window_text(0, 40, 340, status, 0xFFFF00, 0x000000);
+            }
+        }
+    }
+
+    gui_window_destroy(0);
+    return 0;
+}

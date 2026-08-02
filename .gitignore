@@ -1,0 +1,29 @@
+# 构建产物
+bin/
+obj/
+publish/
+
+# WiX 生成文件
+*.wixpdb
+*.cab
+*_dir.wxs
+
+# 从 logo.png 生成的图标（不跟踪，构建时生成）
+src/PazeE.Installer/logo.ico
+
+# .NET
+*.user
+*.suo
+.vs/
+
+# IDE 文档
+.trae/
+
+# 测试目录：仅保留源文件 (.pe/.c/.h) 与辅助脚本 (.ps1/.md)
+# 自动忽略所有编译产物（*.exe / *_linux / *_macos / *_los4.elf / *_arm ...）
+tests/*
+!tests/*.pe
+!tests/*.c
+!tests/*.h
+!tests/*.ps1
+!tests/*.md

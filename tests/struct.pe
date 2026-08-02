@@ -1,0 +1,53 @@
+// struct.pe — 验证结构体、成员访问、指针、结构体数组
+struct Point {
+    int x;
+    int y;
+};
+
+struct Rect {
+    struct Point lo;
+    struct Point hi;
+};
+
+int area(struct Rect r)
+{
+    int w = r.hi.x - r.lo.x;
+    int h = r.hi.y - r.lo.y;
+    return w * h;
+}
+
+int main(void)
+{
+    struct Point p;
+    p.x = 3;
+    p.y = 4;
+    printf("p = (%d, %d)\n", p.x, p.y);        // (3, 4)
+    printf("dist^2 = %d\n", p.x * p.x + p.y * p.y); // 25
+
+    // 指针访问成员
+    struct Point *pp = &p;
+    pp->x = 10;
+    pp->y = 20;
+    printf("pp-> = (%d, %d)\n", pp->x, pp->y); // (10, 20)
+
+    // 嵌套结构体 + 按值传参
+    struct Rect r;
+    r.lo.x = 0; r.lo.y = 0;
+    r.hi.x = 6; r.hi.y = 7;
+    printf("area = %d\n", area(r));            // 42
+
+    // 结构体数组
+    struct Point pts[3];
+    for (int i = 0; i < 3; i++) {
+        pts[i].x = i;
+        pts[i].y = i * i;
+    }
+    int sx = 0, sy = 0;
+    for (int i = 0; i < 3; i++) {
+        sx += pts[i].x;
+        sy += pts[i].y;
+    }
+    printf("pts sum = (%d, %d)\n", sx, sy);    // (0+1+2, 0+1+4) = (3, 5)
+
+    return 0;
+}

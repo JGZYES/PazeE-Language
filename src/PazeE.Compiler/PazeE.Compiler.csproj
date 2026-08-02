@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoWarn>CS8618;CS0219</NoWarn>
+    <AssemblyName>paze</AssemblyName>
+    <RootNamespace>PazeE.Compiler</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- 版本通道：release | beta | alpha，可经 -p:BuildChannel=beta 覆盖 -->
+    <BuildChannel Condition="'$(BuildChannel)' == ''">release</BuildChannel>
+    <BuildChannel Condition="'$(BuildChannel)' != 'release' And '$(BuildChannel)' != 'beta' And '$(BuildChannel)' != 'alpha'">release</BuildChannel>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Version Condition="'$(BuildChannel)' == 'release'">$(VersionPrefix)</Version>
+    <Version Condition="'$(BuildChannel)' != 'release'">$(VersionPrefix)-$(BuildChannel)</Version>
+    <FileVersion>0.1.0.0</FileVersion>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- 多文件输出（非单文件）。编译中间产物 → bin\<channel>\；发布产物 → publish\<version>\bin\（与 src 同级） -->
+    <BaseOutputPath>bin</BaseOutputPath>
+    <OutputPath>$(BaseOutputPath)\$(BuildChannel)\</OutputPath>
+    <PublishDir>..\..\publish\$(Version)\bin\</PublishDir>
+    <PublishSingleFile>false</PublishSingleFile>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <!-- 自包含与否由 publish 时的 self-contained 开关决定；此处不强制 -->
+  </PropertyGroup>
+
+  <!-- 生成 BuildInfo.g.cs：暴露当前通道与版本号 -->
+  <Target Name="GenerateBuildInfo" BeforeTargets="BeforeCompile">
+    <PropertyGroup>
+      <BuildInfoFile>$(IntermediateOutputPath)BuildInfo.g.cs</BuildInfoFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <BuildInfoLines Include="namespace PazeE.Compiler%3B" />
+      <BuildInfoLines Include="internal static class BuildInfo" />
+      <BuildInfoLines Include="{" />
+      <BuildInfoLines Include="    public const string Channel = &quot;$(BuildChannel)&quot;%3B" />
+      <BuildInfoLines Include="    public const string Version = &quot;$(Version)&quot;%3B" />
+      <BuildInfoLines Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(BuildInfoFile)" Lines="@(BuildInfoLines)" Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(BuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

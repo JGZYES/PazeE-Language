@@ -1,0 +1,49 @@
+// flexarray.pe — 灵活数组成员测试
+// 验证 struct 末尾 int data[] 不计入 sizeof，访问时按需扩展
+
+struct Vec {
+    int len;
+    int data[];      // 灵活数组成员：长度 0，不计入 sizeof
+};
+
+struct Header {
+    char tag;
+    int  payload[];  // 灵活数组成员（int）
+};
+
+int main(void)
+{
+    // 1. sizeof 不包含灵活数组（但灵活数组成员的元素对齐仍影响结构体对齐）
+    printf("sizeof(Vec)=%d (expect 4)\n", sizeof(struct Vec));
+    printf("sizeof(Header)=%d (expect 4: char+padding 对齐到 int)\n", sizeof(struct Header));
+
+    // 2. 通过 malloc 分配足够空间并访问
+    int n = 5;
+    struct Vec *v = (struct Vec *)malloc(sizeof(struct Vec) + n * sizeof(int));
+    v->len = n;
+    for (int i = 0; i < n; i++) v->data[i] = i * i;   // 0,1,4,9,16
+
+    printf("len=%d: ", v->len);
+    for (int i = 0; i < v->len; i++) printf("%d ", v->data[i]);
+    printf("\n");
+
+    // 3. 求和验证
+    long sum = 0;
+    for (int i = 0; i < v->len; i++) sum += v->data[i];
+    printf("sum=%d (expect 30)\n", sum);
+
+    free(v);
+
+    // 4. Header 灵活数组（char tag + int[]）
+    int m = 3;
+    struct Header *h = (struct Header *)malloc(sizeof(struct Header) + m * sizeof(int));
+    h->tag = 'X';
+    h->payload[0] = 100;
+    h->payload[1] = 200;
+    h->payload[2] = 300;
+    printf("tag=%c payload=%d %d %d\n",
+           h->tag, h->payload[0], h->payload[1], h->payload[2]);
+    free(h);
+
+    return 0;
+}

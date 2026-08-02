@@ -1,0 +1,32 @@
+// features.pe — 测试 malloc、字符串函数、各种 PazeE 语法
+int main(void)
+{
+    // 1. malloc + 字符串操作
+    char *s = malloc(32);
+    strcpy(s, "Hello");
+    printf("s = %s\n", s);
+    printf("strlen(s) = %d\n", strlen(s));
+
+    // 2. strcat
+    char *t = malloc(32);
+    strcpy(t, ", LeonOS 4!");
+    strcat(s, t);
+    printf("s+t = %s\n", s);
+    printf("strlen = %d\n", strlen(s));
+
+    // 3. strcmp
+    printf("strcmp(s,t) = %d\n", strcmp(s, t));
+
+    // 4. 数字格式化
+    printf("int: %d\n", 42);
+    printf("neg: %d\n", -17);
+    printf("hex: %x\n", 255);
+    printf("char: %c%c%c\n", 'Y', 'e', 's');
+    printf("multi: %d + %d = %d\n", 3, 4, 7);
+
+    // 5. free
+    free(s);
+    free(t);
+
+    return 0;
+}

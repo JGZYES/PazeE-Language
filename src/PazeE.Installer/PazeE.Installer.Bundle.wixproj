@@ -1,0 +1,22 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <PropertyGroup>
+    <OutputName>PazeE-0.1.0-alpha-win-x64</OutputName>
+    <OutputType>Bundle</OutputType>
+    <OutputPath>..\..\publish\0.1.0-alpha\installer\</OutputPath>
+    <DefineConstants>PazeEVersion=0.1.0-alpha;MsiVersion=0.1.0;MsiTargetPath=$(MSBuildProjectDirectory)\obj\Release\PazeE-0.1.0-alpha-win-x64.msi</DefineConstants>
+    <!-- 两个项目共享同一目录：排除 Product.wxs，仅编译 Bundle.wxs -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Product.wxs</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WixStdBA：标准 Burn UI（许可链接 + 进度条） -->
+    <PackageReference Include="WixToolset.BootstrapperApplications.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 引用 MSI 项目：构建时自动先构建 MSI -->
+    <ProjectReference Include="PazeE.Installer.Msi.wixproj" />
+  </ItemGroup>
+
+</Project>

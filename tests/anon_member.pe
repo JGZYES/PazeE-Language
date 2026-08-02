@@ -1,0 +1,29 @@
+// anon_member.pe — 匿名结构体/联合成员测试
+struct S {
+    int id;
+    struct {            // 匿名 struct 成员
+        int x;
+        int y;
+    };
+    union {             // 匿名 union 成员
+        int as_int;
+        unsigned as_uint;
+    };
+};
+
+int main(void)
+{
+    struct S s;
+    s.id = 1;
+    s.x = 10;           // 直接访问匿名 struct 字段
+    s.y = 20;
+    s.as_int = -7;      // 直接访问匿名 union 字段
+
+    printf("id=%d x=%d y=%d as_int=%d\n", s.id, s.x, s.y, s.as_int);
+    printf("as_uint=%u\n", s.as_uint);
+
+    s.as_uint = 4000000000U;
+    printf("after as_uint: as_int=%d as_uint=%u\n", s.as_int, s.as_uint);
+
+    return 0;
+}

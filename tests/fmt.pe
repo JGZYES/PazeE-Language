@@ -1,0 +1,6 @@
+int main(void)
+{
+    printf("%d\n", 42);
+    printf("%d + %d = %d\n", 2, 3, 5);
+    return 0;
+}

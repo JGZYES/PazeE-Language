@@ -1,0 +1,21 @@
+/* printf 颜色集成测试：color 参数作为修饰符包装格式串为 ANSI 24-bit 转义码 */
+int printf(const char *fmt, ...);
+
+int main(void) {
+    /* 命名颜色 */
+    printf("Red text\n", color.red);
+    printf("Green text\n", color.green);
+    printf("Blue text\n", color.blue);
+    printf("Yellow text\n", color.yellow);
+    printf("Cyan text\n", color.cyan);
+
+    /* RGB 直接指定 */
+    printf("Orange text\n", color.255.165.0);
+    printf("Custom purple\n", color.128.0.128);
+
+    /* 带格式化参数 + 颜色 */
+    printf("Value = %d\n", color.green, 42);
+    printf("Hex = %x, Dec = %d\n", color.cyan, 255, 255);
+
+    return 0;
+}
