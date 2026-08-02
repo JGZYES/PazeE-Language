@@ -8,8 +8,9 @@ publish/
 *.cab
 *_dir.wxs
 
-# 从 logo.png 生成的图标（不跟踪，构建时生成）
-src/PazeE.Installer/logo.ico
+# 图标与许可协议 RTF：作为构建输入纳入版本库（源自 logo.png 和 LICENSE）
+# src/PazeE.Installer/logo.ico — 已跟踪
+# src/PazeE.Installer/license.rtf — 已跟踪
 
 # .NET
 *.user

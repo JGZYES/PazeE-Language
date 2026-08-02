@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
   <!-- UpgradeCode 发布后永不更改；用于版本升级识别同一产品 -->
   <?define UpgradeCode = "8F4E2A91-3B7C-4D9E-8A12-5F6E1C7B2D90" ?>
@@ -16,7 +17,19 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of PazeE is already installed." />
     <Media Id="1" Cabinet="paze.cab" EmbedCab="yes" />
 
+    <!-- ARP（添加/删除程序）信息：图标、版权声明、链接 -->
+    <Icon Id="PazeEIcon.ico" SourceFile="logo.ico" />
+    <Property Id="ARPPRODUCTICON" Value="PazeEIcon.ico" />
     <Property Id="ARPHELPLINK" Value="https://github.com/PazeE/paze" />
+    <Property Id="ARPCOMMENTS" Value="PazeE Language Compiler — Licensed under GPL-3.0" />
+    <Property Id="ARPCONTACT" Value="PazeE Project" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/PazeE/paze" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/PazeE/paze" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+
+    <!-- 许可协议 RTF：WixUI_Mondo 的 LicenseAgreementDlg 会显示此文件内容 -->
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
 
     <!-- 安装目录：C:\Program Files\PazeE\0.1.0-alpha\ -->
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -55,6 +68,16 @@
         <RegistryValue Type="string" Name="Version" Value="$(var.PazeEVersion)" />
       </RegistryKey>
     </Component>
+
+    <!-- 安装向导 UI：WixUI_Mondo 提供完整安装流程
+         欢迎页 → 许可协议(GPL3) → 安装类型(典型/自定义/完整) →
+         自定义=功能树选择 + 浏览安装路径 → 磁盘开销 → 确认 → 安装 → 完成 -->
+    <ui:WixUI Id="WixUI_Mondo" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <!-- 安装完成提示 -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT"
+              Value="Thank you for installing PazeE Language. Run 'paze --help' in a terminal to get started." />
 
   </Package>
 

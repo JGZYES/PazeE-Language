@@ -21,6 +21,8 @@
   <ItemGroup>
     <!-- heat 任务宿主：提供 HarvestDirectory item 处理 -->
     <PackageReference Include="WixToolset.Heat" Version="6.0.2" />
+    <!-- WixUI 扩展：提供 WixUI_Mondo 等对话框集（许可协议/功能选择/路径浏览） -->
+    <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
   </ItemGroup>
 
   <ItemGroup>
