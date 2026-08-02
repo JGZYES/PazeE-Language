@@ -13,23 +13,19 @@
       AboutUrl="https://github.com/PazeE/paze"
       IconSourceFile="logo.ico">
 
-    <!-- WixStdBA：hyperlinkLicense 主题，外层显示图标/版本/安装按钮 + GPL3 许可链接 -->
+    <!-- WixInternalUIBootstrapperApplication：直接显示 MSI 内部向导
+         用户运行 .exe 后直接看到品牌化向导：许可协议(GPL3) → 安装路径 → 安装进度 → 完成 -->
     <BootstrapperApplication>
-      <bal:WixStandardBootstrapperApplication
-          LicenseUrl="https://www.gnu.org/licenses/gpl-3.0.html"
-          Theme="hyperlinkLicense"
-          ShowVersion="yes"
+      <bal:WixInternalUIBootstrapperApplication
           LogoFile="logo_large.png" />
     </BootstrapperApplication>
 
     <Chain>
       <!-- 把 MSI 嵌入 .exe（Compressed 默认 yes），强制 per-machine 安装 -->
-      <!-- bal:DisplayInternalUICondition=True：显示 MSI 内部向导（许可协议 GPL3 + 功能选择 + 安装路径） -->
       <MsiPackage
           SourceFile="$(var.MsiTargetPath)"
           ForcePerMachine="yes"
-          Vital="yes"
-          bal:DisplayInternalUICondition="True" />
+          Vital="yes" />
     </Chain>
   </Bundle>
 
