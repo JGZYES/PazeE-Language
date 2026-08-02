@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization xmlns="http://wixtoolset.org/schemas/v4/wxl" Language="en-US" Culture="en-us">
+  <String Id="PazeEProductName" Value="PazeE Language" />
+  <String Id="PazeEPublisher" Value="PazeE Project" />
+  <String Id="WelcomeText1" Value="The Setup Wizard will install PazeE Language on your computer. Click Next to continue or Cancel to exit the Setup Wizard." />
+  <String Id="LicenseText" Value="Please review the license agreement before installing PazeE Language." />
+  <String Id="LicenseAccept" Value="I accept the terms in the License Agreement" />
+  <String Id="LicenseDecline" Value="I do not accept the terms in the License Agreement" />
+  <String Id="InstallText1" Value="Click Install to begin the installation." />
+  <String Id="InstallText2" Value="Setup is ready to install PazeE Language on your computer." />
+  <String Id="ProgressText" Value="Installing PazeE Language, please wait..." />
+  <String Id="ExitText" Value="Thank you for installing PazeE Language. Run 'paze --help' in a terminal to get started." />
+  <String Id="ExitText2" Value="The Setup Wizard has finished installing PazeE Language on your computer." />
+  <String Id="LaunchText" Value="Launch PazeE Language" />
+  <String Id="NextBtn" Value="Next &amp;" />
+  <String Id="BackBtn" Value="&amp;Back" />
+  <String Id="InstallBtn" Value="&amp;Install" />
+  <String Id="FinishBtn" Value="&amp;Finish" />
+  <String Id="CancelBtn" Value="&amp;Cancel" />
+  <String Id="BrowseBtn" Value="&amp;Browse..." />
+  <String Id="InstallDirLabel" Value="Destination Folder" />
+  <String Id="InstallDirText" Value="Setup will install PazeE Language into the following folder. Click Change to install to a different folder." />
+  <String Id="ChangeBtn" Value="Ch&amp;ange" />
+  <String Id="LangSelectText" Value="Please select your preferred language:" />
+  <String Id="LangEnglish" Value="English" />
+  <String Id="LangChineseSimplified" Value="Chinese (Simplified)" />
+  <String Id="LangChineseTraditional" Value="Chinese (Traditional)" />
+  <String Id="ARPComments" Value="PazeE Language Compiler — Licensed under GPL-3.0" />
+  <String Id="ARPContact" Value="PazeE Project" />
+  <String Id="DowngradeError" Value="A newer version of PazeE is already installed." />
+  <String Id="BinariesTitle" Value="Compiler binaries" />
+</WixLocalization>

@@ -16,13 +16,25 @@
     <TreatValidationWarningsAsErrors>false</TreatValidationWarningsAsErrors>
     <!-- 两个项目共享同一目录：排除 Bundle.wxs，SDK 自动包含 Product.wxs + heat 生成文件 -->
     <DefaultItemExcludes>$(DefaultItemExcludes);Bundle.wxs</DefaultItemExcludes>
+    <!-- MSI 输出目录（同时发布 MSI 到 installer 目录，与 .exe 并列） -->
+    <PublishDir>..\..\publish\0.1.0-alpha\installer\</PublishDir>
+    <!-- 多语言构建：简体中文(默认) + English + 繁體中文 -->
+    <Cultures>zh-cn;en-us;zh-tw</Cultures>
+    <DefaultCulture>zh-cn</DefaultCulture>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- heat 任务宿主：提供 HarvestDirectory item 处理 -->
     <PackageReference Include="WixToolset.Heat" Version="6.0.2" />
-    <!-- WixUI 扩展：提供 WixUI_Mondo 等对话框集（许可协议/功能选择/路径浏览） -->
+    <!-- WixUI 扩展：提供 WixUI_InstallDir 对话框集（许可协议/路径选择） -->
     <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+  <!-- 本地化文件：三种语言的 UI 字符串 -->
+  <ItemGroup>
+    <WixLocalization Include="en-US.wxl" Culture="en-us" />
+    <WixLocalization Include="zh-CN.wxl" Culture="zh-cn" />
+    <WixLocalization Include="zh-TW.wxl" Culture="zh-tw" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,5 +51,16 @@
       <GenerateGuidsNow>true</GenerateGuidsNow>
     </HarvestDirectory>
   </ItemGroup>
+
+  <!-- 构建后复制 MSI 到 publish 目录（与 Bundle .exe 并列） -->
+  <!-- 多语言构建：每个 culture 生成独立 MSI，复制默认语言(zh-cn)到 publish -->
+  <Target Name="PublishMsi" AfterTargets="Build" Condition="'$(PublishDir)' != ''">
+    <ItemGroup>
+      <_MsiFiles Include="$(OutputPath)$(DefaultCulture)\*.msi" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_MsiFiles)"
+          DestinationFolder="$(MSBuildProjectDirectory)\$(PublishDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

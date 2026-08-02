@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization xmlns="http://wixtoolset.org/schemas/v4/wxl" Language="zh-TW" Culture="zh-tw">
+  <String Id="PazeEProductName" Value="PazeE 語言" />
+  <String Id="PazeEPublisher" Value="PazeE 專案" />
+  <String Id="WelcomeText1" Value="安裝精靈將把 PazeE 語言安裝到您的電腦。按一下&#x201C;下一步&#x201D;繼續，或按一下&#x201C;取消&#x201D;離開安裝精靈。" />
+  <String Id="LicenseText" Value="在安裝 PazeE 語言之前，請仔細閱讀許可協議。" />
+  <String Id="LicenseAccept" Value="我接受許可協議中的條款" />
+  <String Id="LicenseDecline" Value="我不接受許可協議中的條款" />
+  <String Id="InstallText1" Value="按一下&#x201C;安裝&#x201D;開始安裝。" />
+  <String Id="InstallText2" Value="安裝程式已準備好將 PazeE 語言安裝到您的電腦。" />
+  <String Id="ProgressText" Value="正在安裝 PazeE 語言，請稍候..." />
+  <String Id="ExitText" Value="感謝您安裝 PazeE 語言。請在終端機中執行 paze --help 開始使用。" />
+  <String Id="ExitText2" Value="安裝精靈已完成 PazeE 語言在您電腦上的安裝。" />
+  <String Id="LaunchText" Value="啟動 PazeE 語言" />
+  <String Id="NextBtn" Value="下一步(&amp;N)" />
+  <String Id="BackBtn" Value="上一步(&amp;B)" />
+  <String Id="InstallBtn" Value="安裝(&amp;I)" />
+  <String Id="FinishBtn" Value="完成(&amp;F)" />
+  <String Id="CancelBtn" Value="取消(&amp;C)" />
+  <String Id="BrowseBtn" Value="瀏覽(&amp;B)..." />
+  <String Id="InstallDirLabel" Value="目標資料夾" />
+  <String Id="InstallDirText" Value="安裝程式將把 PazeE 語言安裝到以下資料夾。按一下&#x201C;變更&#x201D;可安裝到其他資料夾。" />
+  <String Id="ChangeBtn" Value="變更(&amp;H)" />
+  <String Id="LangSelectText" Value="請選擇您偏好的語言：" />
+  <String Id="LangEnglish" Value="English（英語）" />
+  <String Id="LangChineseSimplified" Value="簡體中文" />
+  <String Id="LangChineseTraditional" Value="繁體中文" />
+  <String Id="ARPComments" Value="PazeE 語言編譯器 — 基於 GPL-3.0 協議開源" />
+  <String Id="ARPContact" Value="PazeE 專案" />
+  <String Id="DowngradeError" Value="偵測到已安裝更新版本的 PazeE。" />
+  <String Id="BinariesTitle" Value="編譯器核心檔案" />
+</WixLocalization>
