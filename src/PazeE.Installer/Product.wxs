@@ -26,9 +26,8 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/PazeE/paze" />
     <Property Id="ARPURLUPDATEINFO" Value="https://github.com/PazeE/paze" />
     <Property Id="ARPNOREPAIR" Value="1" />
-    <Property Id="ARPNOMODIFY" Value="1" />
 
-    <!-- 许可协议 RTF：WixUI_Mondo 的 LicenseAgreementDlg 会显示此文件内容 -->
+    <!-- 许可协议 RTF：LicenseAgreementDlg 显示 GPL3 全文 -->
     <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
 
     <!-- 品牌化位图：替换 WixUI 默认蓝色位图，打造大厂级专业外观 -->
@@ -73,10 +72,10 @@
       </RegistryKey>
     </Component>
 
-    <!-- 安装向导 UI：WixUI_Mondo 提供完整安装流程
-         欢迎页 → 许可协议(GPL3) → 安装类型(典型/自定义/完整) →
-         自定义=功能树选择 + 浏览安装路径 → 磁盘开销 → 确认 → 安装 → 完成 -->
-    <ui:WixUI Id="WixUI_Mondo" />
+    <!-- 安装向导 UI：WixUI_InstallDir 简洁三步流程（类似 Python 安装器）
+         ① 许可协议(GPL3 全文，接受/不接受) → ② 安装路径(浏览选择) → ③ 安装进度 → 完成 -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <ui:WixUI Id="WixUI_InstallDir" />
     <UIRef Id="WixUI_ErrorProgressText" />
 
     <!-- 安装完成提示 -->
