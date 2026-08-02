@@ -31,6 +31,10 @@
     <!-- 许可协议 RTF：WixUI_Mondo 的 LicenseAgreementDlg 会显示此文件内容 -->
     <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
 
+    <!-- 品牌化位图：替换 WixUI 默认蓝色位图，打造大厂级专业外观 -->
+    <WixVariable Id="WixUIDialogBmp" Value="dialog_bg.png" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.png" />
+
     <!-- 安装目录：C:\Program Files\PazeE\0.1.0-alpha\ -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="PazeEFolder" Name="PazeE">

@@ -18,7 +18,8 @@
       <bal:WixStandardBootstrapperApplication
           LicenseUrl="https://www.gnu.org/licenses/gpl-3.0.html"
           Theme="hyperlinkLicense"
-          ShowVersion="yes" />
+          ShowVersion="yes"
+          LogoFile="logo_large.png" />
     </BootstrapperApplication>
 
     <Chain>
