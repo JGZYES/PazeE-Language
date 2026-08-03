@@ -29,6 +29,7 @@ public sealed class MachOWriter : IExecutableWriter
     private const uint LC_DYSYMTAB = 0x0B;
     private const uint LC_MAIN = 0x80000028;
     private const uint LC_CODE_SIGNATURE = 0x1D;
+    private const uint LC_BUILD_VERSION = 0x32;
     private const int VM_PROT_READ = 1, VM_PROT_WRITE = 2, VM_PROT_EXECUTE = 4;
     private const int S_NON_LAZY_SYMBOL_POINTERS = 0x06;
     // nlist n_type
@@ -160,8 +161,9 @@ public sealed class MachOWriter : IExecutableWriter
         int lcSymtab = 24;
         int lcDysymtab = 80;
         int lcCodeSig = 16; // linkedit_data_command（cmd+cmdsize+dataoff+datasize）
-        int sizeofcmds = segTextCmd + segDataCmd + segLinkCmd + lcDylinker + lcDylib + lcMain + lcSymtab + lcDysymtab + lcCodeSig;
-        int ncmds = 9;
+        int lcBuildVer = 24; // build_version_command（cmd+cmdsize+platform+minos+sdk+ntools）
+        int sizeofcmds = segTextCmd + segDataCmd + segLinkCmd + lcDylinker + lcDylib + lcMain + lcSymtab + lcDysymtab + lcCodeSig + lcBuildVer;
+        int ncmds = 10;
 
         int headerSize = 32;
         int textFileOff = headerSize + sizeofcmds; // __text 文件偏移
@@ -330,6 +332,14 @@ public sealed class MachOWriter : IExecutableWriter
         Write32At(f2, (uint)indirectOff); Write32At(f2, (uint)nExt); // indirectsymoff, nindirectsyms
         Write32At(f2, 0); Write32At(f2, 0); // extreloff, nextrel
         Write32At(f2, 0); Write32At(f2, 0); // locreloff, nlocrel
+
+        // ---- LC_BUILD_VERSION ----
+        Write32At(f2, LC_BUILD_VERSION);
+        Write32At(f2, 24);            // cmdsize
+        Write32At(f2, 1);             // platform = PLATFORM_MACOS
+        Write32At(f2, 0x000B0000);    // minos = macOS 11.0.0
+        Write32At(f2, 0x000E0000);    // sdk = macOS 14.0.0
+        Write32At(f2, 0);             // ntools = 0
 
         // ---- LC_CODE_SIGNATURE ----
         Write32At(f2, LC_CODE_SIGNATURE);

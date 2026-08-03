@@ -93,26 +93,30 @@ jobs:
 
       - name: Smoke test — compile hello.pe
         env:
-          # arm64 构建用 --arch arm 产出 arm64 Mach-O；x64 用默认 AMD64。
-          # x64 产物在 macos-14 (arm64) 上经 Rosetta 2 运行。
           ARCH_FLAG: ${{ matrix.arch == 'arm64' && '--arch arm' || '' }}
         run: |
           BIN="staging/paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}/bin"
-          if [ -f "$BIN/paze" ]; then
-            "$BIN/paze" tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
-            file /tmp/hello.macos
-            chmod +x /tmp/hello.macos
-            # macOS 上执行编译产物（Mach-O 原生可执行；x64 经 Rosetta 2）
-            /tmp/hello.macos || true
-          elif [ -f "$BIN/paze.dll" ]; then
-            dotnet "$BIN/paze.dll" tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
-            file /tmp/hello.macos
-            chmod +x /tmp/hello.macos
-            /tmp/hello.macos || true
-          else
-            echo "WARN: paze binary not found, listing bin/:"
-            ls -la "$BIN"
+          PAZE="$BIN/paze"
+          if [ -f "$BIN/paze.dll" ] && [ ! -f "$PAZE" ]; then PAZE="dotnet $BIN/paze.dll"; fi
+          if [ -z "$PAZE" ] || [ ! -f "$BIN/paze" ]; then
+            echo "WARN: paze binary not found, listing bin/:"; ls -la "$BIN"; exit 0
           fi
+          $PAZE tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
+          file /tmp/hello.macos
+          chmod +x /tmp/hello.macos
+          # 诊断代码签名
+          echo "=== codesign display ==="
+          codesign -dv --verbose=4 /tmp/hello.macos 2>&1 || true
+          echo "=== codesign verify ==="
+          codesign --verify --deep --strict /tmp/hello.macos 2>&1 && echo "SIGNATURE OK" || echo "SIGNATURE FAILED"
+          echo "=== spctl assessment ==="
+          spctl --assess --type execute /tmp/hello.macos 2>&1 || true
+          echo "=== try run ==="
+          /tmp/hello.macos 2>&1; echo "exit code: $?"
+
+      - name: Dump Mach-O load commands
+        run: |
+          otool -l /tmp/hello.macos 2>&1 | head -120 || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
