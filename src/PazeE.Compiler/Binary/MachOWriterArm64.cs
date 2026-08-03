@@ -31,6 +31,7 @@ public sealed class MachOWriterArm64 : IExecutableWriter
     private const uint LC_LOAD_DYLINKER = 0x0E;
     private const uint LC_DYSYMTAB = 0x0B;
     private const uint LC_MAIN = 0x80000028;
+    private const uint LC_CODE_SIGNATURE = 0x1D;
     private const int VM_PROT_READ = 1, VM_PROT_WRITE = 2, VM_PROT_EXECUTE = 4;
     private const int S_NON_LAZY_SYMBOL_POINTERS = 0x06;
     private const byte N_EXT = 0x01, N_SECT = 0x0e;
@@ -137,8 +138,9 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         int lcMain = 24;
         int lcSymtab = 24;
         int lcDysymtab = 80;
-        int sizeofcmds = segTextCmd + segDataCmd + segLinkCmd + lcDylinker + lcDylib + lcMain + lcSymtab + lcDysymtab;
-        int ncmds = 8;
+        int lcCodeSig = 16; // linkedit_data_command（cmd+cmdsize+dataoff+datasize）
+        int sizeofcmds = segTextCmd + segDataCmd + segLinkCmd + lcDylinker + lcDylib + lcMain + lcSymtab + lcDysymtab + lcCodeSig;
+        int ncmds = 9;
 
         int headerSize = 32;
         int textFileOff = headerSize + sizeofcmds;
@@ -168,7 +170,11 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         long symtabOff = bindOff + bind.Count;
         long indirectOff = symtabOff + symtab.Count;
         long strtabOff = indirectOff + indirect.Count;
-        long linkSegFileEnd = strtabOff + strtab.Count;
+        // 代码签名（ad-hoc）：16 字节对齐后附加到 __LINKEDIT 末尾
+        long sigOff = Align(strtabOff + strtab.Count, 16);
+        int codeLimit = (int)sigOff;
+        int sigBlobSize = MachOCodeSignature.ComputeBlobSize(codeLimit);
+        long linkSegFileEnd = sigOff + sigBlobSize;
         long linkSegVmEnd = linkSegVmaddr + (linkSegFileEnd - linkSegFileOff);
 
         // ---- 填充 main 符号 n_value ----
@@ -323,6 +329,12 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         Write32At(f2, 0); Write32At(f2, 0);
         Write32At(f2, 0); Write32At(f2, 0);
 
+        // ---- LC_CODE_SIGNATURE ----
+        Write32At(f2, LC_CODE_SIGNATURE);
+        Write32At(f2, 16);                    // cmdsize (linkedit_data_command)
+        Write32At(f2, (uint)sigOff);          // dataoff
+        Write32At(f2, (uint)sigBlobSize);     // datasize
+
         // ---- __TEXT 段数据 ----
         f2.AddRange(text);
         f2.AddRange(cstring);
@@ -338,6 +350,10 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         f2.AddRange(symtab);
         f2.AddRange(indirect);
         f2.AddRange(strtab);
+        // 代码签名（ad-hoc SHA-256）：对文件 [0..codeLimit) 逐页哈希
+        while (f2.Count < sigOff) f2.Add(0);
+        byte[] sigBlob = MachOCodeSignature.Build(f2.ToArray(), codeLimit);
+        f2.AddRange(sigBlob);
 
         return f2.ToArray();
     }
