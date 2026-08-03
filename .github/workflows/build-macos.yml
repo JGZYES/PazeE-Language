@@ -15,8 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # macos-13 (x64 runner) 长期排队/不分配，改用 macos-14 (arm64) 交叉编译两个架构。
+          # .NET 在 arm64 主机上 `publish -r osx-x64` 产出原生 x64 单文件；x64 产物经 Rosetta 2 可在 arm64 上运行（冒烟测试仍生效）。
           - arch: x64
-            runner: macos-13
+            runner: macos-14
             rid: osx-x64
           - arch: arm64
             runner: macos-14
@@ -90,15 +92,19 @@ jobs:
           ls -lh paze-*.tar.gz
 
       - name: Smoke test — compile hello.pe
+        env:
+          # arm64 构建用 --arch arm 产出 arm64 Mach-O；x64 用默认 AMD64。
+          # x64 产物在 macos-14 (arm64) 上经 Rosetta 2 运行。
+          ARCH_FLAG: ${{ matrix.arch == 'arm64' && '--arch arm' || '' }}
         run: |
           BIN="staging/paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}/bin"
           if [ -f "$BIN/paze" ]; then
-            "$BIN/paze" tests/hello.pe --target macos -o /tmp/hello.macos
+            "$BIN/paze" tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
             file /tmp/hello.macos
-            # macOS 上执行编译产物（Mach-O 原生可执行）
+            # macOS 上执行编译产物（Mach-O 原生可执行；x64 经 Rosetta 2）
             /tmp/hello.macos || true
           elif [ -f "$BIN/paze.dll" ]; then
-            dotnet "$BIN/paze.dll" tests/hello.pe --target macos -o /tmp/hello.macos
+            dotnet "$BIN/paze.dll" tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
             file /tmp/hello.macos
             /tmp/hello.macos || true
           else
