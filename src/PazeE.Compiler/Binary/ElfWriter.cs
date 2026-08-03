@@ -309,12 +309,12 @@ public sealed class ElfWriter : IExecutableWriter
     {
         Write32At(f, type);
         Write32At(f, flags);
-        Write64At(f, off);
-        Write64At(f, vaddr);
-        Write64At(f, vaddr);   // p_paddr = p_vaddr
-        Write64At(f, filesz);
-        Write64At(f, memsz);
-        Write64At(f, align);
+        int o1 = f.Count; Write64At(f, o1, off);
+        int o2 = f.Count; Write64At(f, o2, vaddr);
+        int o3 = f.Count; Write64At(f, o3, vaddr);   // p_paddr = p_vaddr
+        int o4 = f.Count; Write64At(f, o4, filesz);
+        int o5 = f.Count; Write64At(f, o5, memsz);
+        int o6 = f.Count; Write64At(f, o6, align);
     }
 
     private static void WriteSym(List<byte> s, int name, int info, int other, int shndx, long value)

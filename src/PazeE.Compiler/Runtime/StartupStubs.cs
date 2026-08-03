@@ -45,7 +45,7 @@ public static class StartupStubs
     }
 
     /// <summary>LeonOS 4 _start：call main；mov edi,eax；mov eax,60；int 0x80。
-    /// LeonOS 4 使用 int 0x80（非 syscall 指令）进行系统调用，寄存器约定同 Linux x86_64。</summary>
+    /// LeonOS 4 使用 int 0x80 指令（0xCD 0x80），寄存器约定同 Linux x86_64。</summary>
     public static (byte[] code, List<StubFixup> fixups) Los4(bool hasArgcArgv)
     {
         var b = new List<byte>();
@@ -59,7 +59,7 @@ public static class StartupStubs
         b.Add(0xE8); fx.Add(new StubFixup(b.Count, FixupKind.Rel32, "main")); b.AddRange(new byte[4]); // call main
         b.AddRange(new byte[] { 0x89, 0xC7 });     // mov edi, eax
         b.AddRange(new byte[] { 0xB8, 0x3C, 0x00, 0x00, 0x00 }); // mov eax, 60 (SYS_exit)
-        b.AddRange(new byte[] { 0xCD, 0x80 });     // int 0x80
+        b.AddRange(new byte[] { 0xCD, 0x80 });     // int 0x80 (LeonOS 4 使用 int 0x80)
         return (b.ToArray(), fx);
     }
 

@@ -675,12 +675,17 @@ public sealed class Parser
             case TokenKind.KwSizeof:
                 {
                     var r = Peek().Range; _i++;
-                    if (Check(TokenKind.LParen) && IsTypeName(Peek()))
+                    // sizeof(type)：'(' 紧跟类型名。先用 Peek 判定（不消费 '('），
+                    // 否则 sizeof(expr) 路径会因 '(' 已被消费而漏吃匹配的 ')'，
+                    // 导致后续语句多出一个 ')'（“期望 ;，但遇到 ')'”）。
+                    if (Peek().Kind == TokenKind.LParen && IsTypeName(Peek(1)))
                     {
+                        _i++; // consume '('
                         var t = ParseTypeName();
                         Expect(TokenKind.RParen, ")");
                         return new SizeofExpr(null, t) { Range = r };
                     }
+                    // sizeof expr / sizeof(expr)：括号由一元/初等表达式自行消费。
                     var e = ParseUnary();
                     return new SizeofExpr(e, null) { Range = r };
                 }

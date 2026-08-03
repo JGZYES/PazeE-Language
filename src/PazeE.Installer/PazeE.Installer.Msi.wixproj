@@ -1,14 +1,14 @@
 <Project Sdk="WixToolset.Sdk/6.0.2">
 
   <PropertyGroup>
-    <OutputName>PazeE-0.1.0-alpha-win-x64</OutputName>
+    <OutputName>PazeE-0.1.1-alpha-win-x64</OutputName>
     <OutputType>Package</OutputType>
     <!-- MSI 作为中间产物输出到 obj（不单独发布，仅供 Bundle 内嵌） -->
     <OutputPath>obj\Release\</OutputPath>
     <!-- MSBuild 属性（供 HarvestDirectory 引用） -->
-    <PublishBinDir>..\..\publish\0.1.0-alpha\bin</PublishBinDir>
+    <PublishBinDir>..\..\publish\0.1.1-alpha\bin</PublishBinDir>
     <!-- 同时作为 WiX 预处理器变量传入 .wxs -->
-    <DefineConstants>PazeEVersion=0.1.0-alpha;MsiVersion=0.1.0;PublishBinDir=$(PublishBinDir)</DefineConstants>
+    <DefineConstants>PazeEVersion=0.1.1-alpha;MsiVersion=0.1.1;PublishBinDir=$(PublishBinDir)</DefineConstants>
     <!-- x64 平台：使 heat 生成的组件标记为 64 位，匹配 ProgramFiles64Folder -->
     <Platform>x64</Platform>
     <!-- 抑制 .NET 自包含运行时常见的 ICE 校验警告 -->
@@ -17,7 +17,7 @@
     <!-- 两个项目共享同一目录：排除 Bundle.wxs，SDK 自动包含 Product.wxs + heat 生成文件 -->
     <DefaultItemExcludes>$(DefaultItemExcludes);Bundle.wxs</DefaultItemExcludes>
     <!-- MSI 输出目录（同时发布 MSI 到 installer 目录，与 .exe 并列） -->
-    <PublishDir>..\..\publish\0.1.0-alpha\installer\</PublishDir>
+    <PublishDir>..\..\publish\0.1.1-alpha\installer\</PublishDir>
     <!-- 多语言构建：简体中文(默认) + English + 繁體中文 -->
     <Cultures>zh-cn;en-us;zh-tw</Cultures>
     <DefaultCulture>zh-cn</DefaultCulture>
@@ -52,11 +52,47 @@
     </HarvestDirectory>
   </ItemGroup>
 
-  <!-- 构建后复制 MSI 到 publish 目录（与 Bundle .exe 并列） -->
-  <!-- 多语言构建：每个 culture 生成独立 MSI，复制默认语言(zh-cn)到 publish -->
-  <Target Name="PublishMsi" AfterTargets="Build" Condition="'$(PublishDir)' != ''">
+  <!-- 生成语言 transforms 并嵌入到多语言 MSI（独立文件，不影响原始 zh-cn MSI 供 Bundle 引用） -->
+  <!-- 流程：Build 后 → 复制 zh-cn MSI 为多语言 MSI → 生成 .mst → 嵌入 transforms + 改 Summary Template -->
+  <!-- 结果：obj\Release\<name>.msi = 多语言 MSI（publish 分发）；obj\Release\zh-cn\<name>.msi = 单语言（Bundle 引用） -->
+  <Target Name="EmbedLanguageTransforms" AfterTargets="Build" BeforeTargets="PublishMsi">
+    <PropertyGroup>
+      <WixExe Condition="'$(WixExe)' == '' And '$(PkgWixToolset_Sdk)' != ''">$([System.IO.Path]::Combine('$(PkgWixToolset_Sdk)', 'tools\net472\x64\wix.exe'))</WixExe>
+      <WixExe Condition="'$(WixExe)' == ''">$(USERPROFILE)\.nuget\packages\wixtoolset.sdk\6.0.2\tools\net472\x64\wix.exe</WixExe>
+      <ObjOut>$(OutputPath)</ObjOut>
+      <MsiFile>$(OutputName).msi</MsiFile>
+      <ZhCnMsi>$(ObjOut)zh-cn\$(MsiFile)</ZhCnMsi>
+      <EnUsMsi>$(ObjOut)en-us\$(MsiFile)</EnUsMsi>
+      <ZhTwMsi>$(ObjOut)zh-tw\$(MsiFile)</ZhTwMsi>
+      <MultiLangMsi>$(ObjOut)$(MsiFile)</MultiLangMsi>
+      <EnMst>$(ObjOut)en-us.mst</EnMst>
+      <TwMst>$(ObjOut)zh-tw.mst</TwMst>
+      <EmbedScript>$(MSBuildProjectDirectory)\embed_lang.ps1</EmbedScript>
+      <PsExe>$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe</PsExe>
+    </PropertyGroup>
+
+    <!-- 复制 zh-cn MSI 为多语言版本（原始 zh-cn MSI 保持单语言供 Bundle 引用） -->
+    <Copy SourceFiles="$(ZhCnMsi)" DestinationFiles="$(MultiLangMsi)" SkipUnchangedFiles="false" />
+
+    <!-- 生成 en-us 语言 transform（相对于 zh-cn 基础 MSI） -->
+    <Exec Command='"$(WixExe)" msi transform -t language "$(ZhCnMsi)" "$(EnUsMsi)" -out "$(EnMst)"'
+          ConsoleToMSBuild="true" />
+
+    <!-- 生成 zh-tw 语言 transform -->
+    <Exec Command='"$(WixExe)" msi transform -t language "$(ZhCnMsi)" "$(ZhTwMsi)" -out "$(TwMst)"'
+          ConsoleToMSBuild="true" />
+
+    <!-- 嵌入 transforms 到多语言 MSI：storage '1033'=en-us, '1028'=zh-tw；Summary Template=x64;2052,1033,1028 -->
+    <Exec Command='"$(PsExe)" -ExecutionPolicy Bypass -File "$(EmbedScript)" -MsiPath "$(MultiLangMsi)" -EnMst "$(EnMst)" -TwMst "$(TwMst)"'
+          ConsoleToMSBuild="true" />
+
+    <Message Text="Multi-language MSI built: $(MultiLangMsi) (zh-cn + en-us + zh-tw, auto language selection)" Importance="high" />
+  </Target>
+
+  <!-- 构建后复制多语言 MSI 到 publish 目录（与 Bundle .exe 并列） -->
+  <Target Name="PublishMsi" AfterTargets="EmbedLanguageTransforms" Condition="'$(PublishDir)' != ''">
     <ItemGroup>
-      <_MsiFiles Include="$(OutputPath)$(DefaultCulture)\*.msi" />
+      <_MsiFiles Include="$(OutputPath)$(OutputName).msi" />
     </ItemGroup>
     <Copy SourceFiles="@(_MsiFiles)"
           DestinationFolder="$(MSBuildProjectDirectory)\$(PublishDir)"

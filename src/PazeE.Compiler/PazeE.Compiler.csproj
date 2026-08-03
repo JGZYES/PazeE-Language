@@ -14,7 +14,7 @@
     <!-- 版本通道：release | beta | alpha，可经 -p:BuildChannel=beta 覆盖 -->
     <BuildChannel Condition="'$(BuildChannel)' == ''">release</BuildChannel>
     <BuildChannel Condition="'$(BuildChannel)' != 'release' And '$(BuildChannel)' != 'beta' And '$(BuildChannel)' != 'alpha'">release</BuildChannel>
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionPrefix>0.1.1</VersionPrefix>
     <Version Condition="'$(BuildChannel)' == 'release'">$(VersionPrefix)</Version>
     <Version Condition="'$(BuildChannel)' != 'release'">$(VersionPrefix)-$(BuildChannel)</Version>
     <FileVersion>0.1.0.0</FileVersion>

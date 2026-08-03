@@ -37,10 +37,10 @@
     <!-- 默认语言：简体中文（如果用户未选择） -->
     <Property Id="UILanguage" Value="zh-cn" />
 
-    <!-- 安装目录：C:\Program Files\PazeE\0.1.0-alpha\ -->
+    <!-- 安装目录：C:\Program Files\PazeE\0.1.1-alpha\ -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="PazeEFolder" Name="PazeE">
-        <Directory Id="INSTALLFOLDER" Name="0.1.0-alpha" />
+        <Directory Id="INSTALLFOLDER" Name="0.1.1-alpha" />
       </Directory>
     </StandardDirectory>
 
@@ -68,7 +68,7 @@
                    Action="set"
                    System="yes" />
 
-      <RegistryKey Root="HKLM" Key="SOFTWARE\PazeE\0.1.0-alpha">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\PazeE\0.1.1-alpha">
         <RegistryValue Type="string" Name="InstallPath" Value="[INSTALLFOLDER]" />
         <RegistryValue Type="string" Name="Version" Value="$(var.PazeEVersion)" />
       </RegistryKey>

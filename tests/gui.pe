@@ -1,26 +1,133 @@
-/* GUI 测试：创建窗口显示文字，按任意键或关闭窗口退出 */
-struct gui_event { int type, key, mouse_x, mouse_y, button, window_id; };
-int gui_init(void);
-int gui_window_create(const char *title, int width, int height);
-int gui_window_text(int win, int x, int y, const char *text, unsigned int fg, unsigned int bg);
-int gui_event_wait(struct gui_event *ev, int timeout_ms);
-int gui_window_destroy(int win);
+/* GUI 测试：PRESENT_WINDOW + 文字渲染（ARGB32 颜色格式）*/
+extern int paze_ioctl(int fd, unsigned long req, void *arg);
+extern void *malloc(unsigned long size);
+extern void memset(void *s, int c, unsigned long n);
+
+#define CREATE_WINDOW   0x4c475743UL
+#define PRESENT_WINDOW  0x4c475046UL
+#define WAIT_WINDOW_EVENT 0x4c475457UL
+
+struct create { unsigned int width, height; const char *title, *text; unsigned int flags; };
+struct present { unsigned int window_id, width, height, stride; unsigned int *pixels; };
+
+struct app_event {
+    unsigned int window_id;
+    unsigned int type;
+    int x, y, dx, dy;
+    unsigned int width, height;
+    unsigned char buttons, keycode, pressed;
+};
+
+struct wait_event {
+    struct app_event event;
+    unsigned int timeout_ms;
+};
+
+/* ARGB32 颜色：byte0=A, byte1=R, byte2=G, byte3=B */
+#define COL_BLACK   0x000000FFU  /* A=FF, R=0, G=0, B=0 */
+#define COL_WHITE   0xFFFFFFFFU  /* A=FF, R=FF, G=FF, B=FF */
+#define COL_RED     0x0000FFFFU  /* A=FF, R=FF, G=0, B=0 */
+
+/* 8x16 字体 */
+static unsigned char fnt_H[16] = {0x66,0x66,0x66,0x66,0x7E,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66};
+static unsigned char fnt_e[16] = {0x00,0x00,0x3C,0x66,0x66,0x66,0x7E,0x60,0x60,0x60,0x60,0x60,0x60,0x3C,0x00,0x00};
+static unsigned char fnt_l[16] = {0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x3C,0x00,0x00};
+static unsigned char fnt_o[16] = {0x00,0x00,0x3C,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x3C,0x00,0x00,0x00,0x00};
+static unsigned char fnt_r[16] = {0x00,0x00,0x7C,0x66,0x66,0x66,0x7C,0x78,0x70,0x70,0x60,0x60,0x60,0x60,0x00,0x00};
+static unsigned char fnt_f[16] = {0x3C,0x66,0x60,0x60,0x60,0xFC,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x00,0x00};
+static unsigned char fnt_m[16] = {0x00,0x00,0x66,0x7E,0x7E,0x7E,0x7E,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x00,0x00};
+static unsigned char fnt_P[16] = {0x7C,0x66,0x66,0x66,0x66,0x7C,0x78,0x70,0x70,0x70,0x70,0x70,0x70,0x70,0x00,0x00};
+static unsigned char fnt_a[16] = {0x00,0x00,0x3C,0x66,0x66,0x66,0x7E,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x00,0x00};
+static unsigned char fnt_z[16] = {0x00,0x00,0x7E,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x7E,0x00,0x00};
+static unsigned char fnt_E[16] = {0x7E,0x60,0x60,0x60,0x60,0x7C,0x60,0x60,0x60,0x60,0x60,0x60,0x60,0x7E,0x00,0x00};
+static unsigned char fnt_c[16] = {0x00,0x00,0x3C,0x66,0x66,0x60,0x60,0x60,0x60,0x60,0x66,0x66,0x3C,0x00,0x00,0x00};
+static unsigned char fnt_t[16] = {0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,0x7E,0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,0x00,0x00,0x00};
+static unsigned char fnt_s[16] = {0x00,0x00,0x3C,0x66,0x60,0x60,0x3C,0x06,0x06,0x66,0x66,0x3C,0x00,0x00,0x00,0x00};
+static unsigned char fnt_o2[16] = {0x00,0x00,0x3C,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x3C,0x00,0x00,0x00,0x00};
+static unsigned char fnt_e2[16] = {0x00,0x00,0x3C,0x66,0x66,0x66,0x7E,0x60,0x60,0x60,0x60,0x60,0x60,0x3C,0x00,0x00};
+static unsigned char fnt_ex[16] = {0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x00,0x00,0x18,0x18,0x18,0x00,0x00};
+
+static unsigned char *getglyph(unsigned char c) {
+    if (c == 'H') return fnt_H;
+    if (c == 'e') return fnt_e;
+    if (c == 'l') return fnt_l;
+    if (c == 'o') return fnt_o;
+    if (c == 'r') return fnt_r;
+    if (c == 'f') return fnt_f;
+    if (c == 'm') return fnt_m;
+    if (c == 'P') return fnt_P;
+    if (c == 'a') return fnt_a;
+    if (c == 'z') return fnt_z;
+    if (c == 'E') return fnt_E;
+    if (c == 'c') return fnt_c;
+    if (c == 't') return fnt_t;
+    if (c == 's') return fnt_s;
+    if (c == '!') return fnt_ex;
+    return 0;
+}
+
+static void putch(unsigned int *fb, int pitch, int x, int y, unsigned char c, unsigned int fg, unsigned int bg) {
+    int row, col;
+    unsigned char *g = getglyph(c);
+    if (!g) return;
+    for (row = 0; row < 16; row++) {
+        unsigned char bits = g[row];
+        for (col = 0; col < 8; col++) {
+            unsigned int color = (bits & (0x80 >> col)) ? fg : bg;
+            if (x+col >= 0 && x+col < 480 && y+row >= 0 && y+row < 320)
+                fb[(y+row)*pitch + (x+col)] = color;
+        }
+    }
+}
+
+static void puts_fb(unsigned int *fb, int pitch, int x, int y, const char *s, unsigned int fg, unsigned int bg) {
+    int cx = x, cy = y, i;
+    for (i = 0; s[i]; i++) {
+        if (s[i] == '\n') { cx = x; cy += 18; continue; }
+        if (s[i] == ' ') { cx += 10; continue; }
+        putch(fb, pitch, cx, cy, s[i], fg, bg);
+        cx += 10;
+    }
+}
 
 int main(void) {
-    if (gui_init() < 0) return 1;
-    if (gui_window_create("PazeE GUI Demo", 480, 320) < 0) return 1;
+    int fd = 3;
+    int W = 480, H = 320;
 
-    /* 显示文字：黑底绿字 */
-    gui_window_text(0, 60, 80, "Hello from PazeE!", 0x00FF00, 0x000000);
-    gui_window_text(0, 60, 120, "Press any key or close to exit", 0xFFFFFF, 0x000000);
+    /* 创建窗口 */
+    struct create gc;
+    gc.width = W; gc.height = H;
+    gc.title = "PazeE Demo"; gc.text = "Hello";
+    gc.flags = 0;
+    int wid = paze_ioctl(fd, CREATE_WINDOW, &gc);
 
-    struct gui_event ev;
+    /* 分配帧缓冲区 */
+    unsigned int *fb = (unsigned int*)malloc((unsigned long)W * H * 4);
+    if (!fb) return 1;
+    memset(fb, 0xFF, (unsigned long)W * H * 4);  /* ARGB32: 0xFFFFFFFF = 白色 */
+
+    /* 绘制文字（ARGB32: 0x000000FF = 黑色，0xFFFFFFFF = 白色）*/
+    puts_fb(fb, W, 20, 20, "Hello from PazeE!", COL_BLACK, COL_WHITE);
+    puts_fb(fb, W, 20, 50, "PazeE is awesome!", COL_BLACK, COL_WHITE);
+    puts_fb(fb, W, 20, 80, "Target: LeonOS 4 (los4)", COL_BLACK, COL_WHITE);
+
+    /* 提交帧缓冲区 */
+    struct present p;
+    p.window_id = (unsigned int)wid;
+    p.width = W;
+    p.height = H;
+    p.stride = W;
+    p.pixels = fb;
+    paze_ioctl(fd, PRESENT_WINDOW, &p);
+
+    /* 事件循环（仅在用户关闭窗口时退出）*/
+    struct wait_event wev;
     while (1) {
-        gui_event_wait(&ev, 0);
-        if (ev.type == 4 || ev.type == 1) break;  /* quit or close */
-        if (ev.type == 2) break;                   /* key down */
+        wev.event.window_id = 0;
+        wev.event.type = 0;
+        wev.timeout_ms = 100;
+        int r = paze_ioctl(fd, WAIT_WINDOW_EVENT, &wev);
+        if (r > 0 && wev.event.type == 1) break;
     }
-
-    gui_window_destroy(0);
     return 0;
 }

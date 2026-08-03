@@ -1,12 +1,17 @@
 <Project Sdk="WixToolset.Sdk/6.0.2">
 
   <PropertyGroup>
-    <OutputName>PazeE-0.1.0-alpha-win-x64</OutputName>
+    <!-- BundleCulture: zh-cn(默认,无后缀) / en-us / zh-tw。用 -p:BundleCulture=en-us 切换 -->
+    <BundleCulture Condition="'$(BundleCulture)' == ''">zh-cn</BundleCulture>
+    <CultureSuffix Condition="'$(BundleCulture)' == 'zh-cn'"></CultureSuffix>
+    <CultureSuffix Condition="'$(BundleCulture)' != 'zh-cn'">-$(BundleCulture)</CultureSuffix>
+    <OutputName>PazeE-0.1.1-alpha-win-x64$(CultureSuffix)</OutputName>
     <OutputType>Bundle</OutputType>
-    <OutputPath>..\..\publish\0.1.0-alpha\installer\</OutputPath>
-    <DefineConstants>PazeEVersion=0.1.0-alpha;MsiVersion=0.1.0;MsiTargetPath=$(MSBuildProjectDirectory)\obj\Release\zh-cn\PazeE-0.1.0-alpha-win-x64.msi</DefineConstants>
-    <Cultures>zh-cn</Cultures>
-    <DefaultCulture>zh-cn</DefaultCulture>
+    <OutputPath>..\..\publish\0.1.1-alpha\installer\</OutputPath>
+    <!-- 引用对应 culture 的单语言 MSI（zh-cn/en-us/zh-tw 子目录中的原始 MSI） -->
+    <DefineConstants>PazeEVersion=0.1.1-alpha;MsiVersion=0.1.1;MsiTargetPath=$(MSBuildProjectDirectory)\obj\Release\$(BundleCulture)\PazeE-0.1.1-alpha-win-x64.msi</DefineConstants>
+    <Cultures>$(BundleCulture)</Cultures>
+    <DefaultCulture>$(BundleCulture)</DefaultCulture>
     <!-- 两个项目共享同一目录：排除 Product.wxs 和 .wxl 本地化文件（由 MSI 项目处理） -->
     <DefaultItemExcludes>$(DefaultItemExcludes);Product.wxs;*.wxl</DefaultItemExcludes>
   </PropertyGroup>

@@ -1147,10 +1147,15 @@ public sealed class X64CodeGenerator : ICodeGenerator
             }
         }
 
-        int outBytes = AlignUp(shadow + nStack * 8 + structCopyBytes, 16);
+        // 寄存器参数溢出槽：求值每个参数时先存到 [rsp+slot]，最后批量载入寄存器。
+        // Win64 的 shadow space（32 字节）可容纳 4 个溢出槽；SysV 无 shadow，
+        // 必须单独分配 regCount*8 字节，否则溢出槽会覆盖调用者的栈临时量。
+        int spillBytes = regCount * 8;
+        int argBase = Math.Max(shadow, spillBytes); // 栈参数起始偏移
+        int outBytes = AlignUp(argBase + nStack * 8 + structCopyBytes, 16);
         if (outBytes != 0) _e.SubImm(Rsp, outBytes);
 
-        int copyBase = shadow + nStack * 8;
+        int copyBase = argBase + nStack * 8;
 
         // 先复制结构体内容到副本区（求值顺序：结构体在标量之前，避免标量寄存器被 CopyBytes 破坏）
         foreach (var kv in structOff)
@@ -1169,7 +1174,7 @@ public sealed class X64CodeGenerator : ICodeGenerator
                 _e.Lea(Rax, Mem.BaseDisp(Rsp, copyBase + structOff[i]));
             else
                 GenValue(args[i]); // Rax = arg
-            int slot = i < regCount ? i * 8 : shadow + (i - regCount) * 8;
+            int slot = i < regCount ? i * 8 : argBase + (i - regCount) * 8;
             _e.Store64(Mem.BaseDisp(Rsp, slot), Rax);
         }
         // 把寄存器参数从溢出槽载入对应寄存器

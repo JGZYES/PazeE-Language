@@ -124,6 +124,7 @@ extern unsigned int SetBkColor(void *, unsigned int);
 extern int TextOutA(void *, int, int, const char *, int);
 extern int InvalidateRect(void *, void *, int);
 extern int DwmSetWindowAttribute(void *, int, void *, int);
+extern void *CreateSolidBrush(unsigned int color);
 
 /* ---- Win32 常量 ---- */
 #define WS_OVERLAPPEDWINDOW 0x00CF0000
@@ -173,9 +174,21 @@ static long long paze_wndproc(void *h, unsigned int msg, unsigned long long w, l
         void *dc = BeginPaint(h, &ps);
         SetTextColor(dc, gui_fg);
         SetBkColor(dc, gui_bg);
-        int len = 0;
-        while (gui_text[len]) len++;
-        TextOutA(dc, gui_text_x, gui_text_y, gui_text, len);
+        /* 逐行绘制（处理 \n 换行）*/
+        int line = 0;
+        int start = 0;
+        int i = 0;
+        while (gui_text[i]) {
+            if (gui_text[i] == '\n') {
+                if (i > start)
+                    TextOutA(dc, gui_text_x, gui_text_y + line * 18, gui_text + start, i - start);
+                line++;
+                start = i + 1;
+            }
+            i++;
+        }
+        if (i > start)
+            TextOutA(dc, gui_text_x, gui_text_y + line * 18, gui_text + start, i - start);
         EndPaint(h, &ps);
         return 0;
     }
@@ -192,14 +205,14 @@ int gui_init(void) {
     memset(&wc, 0, sizeof(struct paze_wc));
     wc.style = 3;               /* CS_HREDRAW | CS_VREDRAW */
     wc.wndproc = paze_wndproc;
-    wc.hbrBackground = 6;       /* COLOR_WINDOW + 1 */
+    wc.hbrBackground = CreateSolidBrush(0xFFFFFF);  /* 显式白色背景，不依赖系统主题色 */
     wc.className = gui_class_name;
     if (RegisterClassA(&wc) == 0) return -1;
     gui_class_registered = 1;
     return 0;
 }
 
-int gui_window_create(const char *title, int width, int height) {
+int gui_window_create(const char *title, const char *text, int width, int height) {
     if (gui_init() < 0) return -1;
     gui_hwnd = CreateWindowExA(0, gui_class_name, title, WS_OVERLAPPEDWINDOW,
         100, 100, width, height, 0, 0, 0, 0);
@@ -211,7 +224,12 @@ int gui_window_create(const char *title, int width, int height) {
     DwmSetWindowAttribute(gui_hwnd, 20, &dark, 4);
     gui_fg = 0;
     gui_bg = 0xFFFFFF;
-    gui_text[0] = 0;
+    gui_text_x = 20;
+    gui_text_y = 40;
+    /* 存储初始文本 */
+    int i = 0;
+    while (text && text[i] && i < 1023) { gui_text[i] = text[i]; i++; }
+    gui_text[i] = 0;
     ShowWindow(gui_hwnd, SW_SHOW);
     UpdateWindow(gui_hwnd);
     return 0;
@@ -349,7 +367,7 @@ int gui_init(void) {
     return 0;
 }
 
-int gui_window_create(const char *title, int width, int height) {
+int gui_window_create(const char *title, const char *text, int width, int height) {
     if (gui_init() < 0) return -1;
     unsigned long root = XRootWindow(gui_display, gui_screen);
     unsigned long bg = XWhitePixel(gui_display, gui_screen);
@@ -365,6 +383,14 @@ int gui_window_create(const char *title, int width, int height) {
     }
     XMapWindow(gui_display, gui_window);
     XFlush(gui_display);
+    /* 绘制初始文本 */
+    if (text) {
+        XSetForeground(gui_display, gui_gc, 0);
+        int len = 0;
+        while (text[len]) len++;
+        XDrawString(gui_display, gui_window, gui_gc, 10, 30, text, len);
+        XFlush(gui_display);
+    }
     return 0;
 }
 
@@ -540,7 +566,7 @@ int gui_init(void) {
     return 0;
 }
 
-int gui_window_create(const char *title, int width, int height) {
+int gui_window_create(const char *title, const char *text, int width, int height) {
     if (gui_init() < 0) return -1;
     void *winCls = objc_getClass("NSWindow");
     if (!winCls) return -1;
@@ -569,6 +595,11 @@ int gui_window_create(const char *title, int width, int height) {
     tv = (void *)paze_mac_send_rect(tv, sel_initWithFrame, tvRect, 0, 0, 0);
     gui_textview = tv;
     objc_msgSend(win, sel_setContentView, tv);
+    /* 设置初始文本 */
+    if (text) {
+        void *textStr = (void *)objc_msgSend(strCls, sel_stringWithUTF8String, text);
+        objc_msgSend(tv, sel_setString, textStr);
+    }
     objc_msgSend(win, sel_makeKeyAndOrderFront, 0);
     return 0;
 }
@@ -623,20 +654,158 @@ int gui_cleanup(void) {
 }
 
 #elif defined(__leonos__)
-/* Los4 GUI — 阶段5 实现（Los4Runtime 静态生成 + ioctl）*/
-int gui_init(void);
-int gui_window_create(const char *title, int width, int height);
-int gui_window_text(int win, int x, int y, const char *text, unsigned int fg, unsigned int bg);
-int gui_window_present(int win);
-int gui_event_poll(struct gui_event *ev);
-int gui_event_wait(struct gui_event *ev, int timeout_ms);
-int gui_window_destroy(int win);
-int gui_cleanup(void);
+/* Los4 GUI — C 实现：与运行时 GenGui* 完全一致的 ioctl 路径 */
+
+/* 运行时底层辅助（Los4Runtime 静态生成）*/
+extern int paze_ioctl(int fd, unsigned long req, void *arg);
+extern int open(const char *path, int flags, ...);
+
+/* Los4 GUI ioctl 码（来自 leonos/gui.h）*/
+#define PAZE_LOS4_CREATE_WINDOW   0x4c475743UL
+#define PAZE_LOS4_FB_FILL         0x4c464246UL
+#define PAZE_LOS4_FB_TEXT         0x4c464254UL
+#define PAZE_LOS4_WINDOW_EVENT    0x4c475745UL
+#define PAZE_LOS4_WAIT_EVENT      0x4c475457UL
+#define PAZE_LOS4_DESTROY_WINDOW  0x4c475744UL
+
+/* Los4 应用事件类型 */
+#define PAZE_LOS4_EV_CLOSE        1
+#define PAZE_LOS4_EV_MOUSE_BUTTON 6
+#define PAZE_LOS4_EV_KEY_DOWN     7
+
+/* GUI ioctl 结构体（布局与 leonos/gui.h 一致）*/
+struct paze_los4_create {
+    unsigned int width;
+    unsigned int height;
+    const char *title;
+    const char *text;
+    unsigned int flags;
+};
+struct paze_los4_fb_text {
+    unsigned int x;
+    unsigned int y;
+    unsigned int fg;
+    unsigned int bg;
+    const char *text;
+};
+struct paze_los4_event {
+    unsigned int window_id;
+    unsigned int type;
+    int x;
+    int y;
+    int dx;
+    int dy;
+    unsigned int width;
+    unsigned int height;
+    unsigned char buttons;
+    unsigned char keycode;
+    unsigned char pressed;
+    unsigned char reserved;
+};
+struct paze_los4_wait {
+    struct paze_los4_event event;
+    unsigned int timeout_ms;
+};
+
+/* GUI 状态 */
+static int gui_fd;
+static int gui_win_id;
+static int gui_win_w;
+static int gui_win_h;
+
+int gui_init(void) {
+    /* 打开 GUI 设备（与 GenGuiInit 一致）*/
+    int fd = open("0:/dev/leonos_gui", 2);  /* O_RDWR = 2 */
+    if (fd < 0) return -1;
+    gui_fd = fd;
+    return 0;
+}
+
+int gui_window_create(const char *title, const char *text, int width, int height) {
+    struct paze_los4_create gc;
+    gc.width = (unsigned int)width;
+    gc.height = (unsigned int)height;
+    gc.title = title;
+    gc.text = text;
+    gc.flags = 0;
+    int wid = paze_ioctl(gui_fd, PAZE_LOS4_CREATE_WINDOW, &gc);
+    if (wid <= 0) return -1;
+    gui_win_id = wid;
+    gui_win_w = width;
+    gui_win_h = height;
+    /* 填充白色背景 + 黑色文字（与 GenGuiWindowText 一致的 FB_TEXT 路径）*/
+    paze_ioctl(gui_fd, PAZE_LOS4_FB_FILL, (void*)(unsigned long)0xFFFFFFFF);
+    struct paze_los4_fb_text ft;
+    ft.x = 10;
+    ft.y = 10;
+    ft.fg = 0xFF000000;  /* 黑色 */
+    ft.bg = 0xFFFFFFFF;  /* 白色 */
+    ft.text = text;
+    paze_ioctl(gui_fd, PAZE_LOS4_FB_TEXT, &ft);
+    return 0;
+}
+
+int gui_window_text(int win, int x, int y, const char *text, unsigned int fg, unsigned int bg) {
+    struct paze_los4_fb_text ft;
+    ft.x = (unsigned int)x;
+    ft.y = (unsigned int)y;
+    ft.fg = fg;
+    ft.bg = bg;
+    ft.text = text;
+    paze_ioctl(gui_fd, PAZE_LOS4_FB_TEXT, &ft);
+    return 0;
+}
+
+int gui_window_present(int win) { return 0; }  /* FB_TEXT 直接渲染，无需 present */
+
+static void paze_los4_translate(struct paze_los4_event *e, struct gui_event *ev) {
+    ev->window_id = (int)e->window_id;
+    ev->type = 0;
+    if (e->type == PAZE_LOS4_EV_CLOSE) {
+        ev->type = 1;
+    } else if (e->type == PAZE_LOS4_EV_KEY_DOWN) {
+        ev->type = 2;
+        ev->key = (int)e->keycode;
+    } else if (e->type == PAZE_LOS4_EV_MOUSE_BUTTON) {
+        ev->type = 3;
+        ev->mouse_x = e->x;
+        ev->mouse_y = e->y;
+        ev->button = (int)e->buttons;
+    }
+}
+
+int gui_event_poll(struct gui_event *ev) {
+    struct paze_los4_event e;
+    memset(&e, 0, sizeof(e));
+    int r = paze_ioctl(gui_fd, PAZE_LOS4_WINDOW_EVENT, &e);
+    if (r <= 0) { ev->type = 0; return 0; }
+    paze_los4_translate(&e, ev);
+    return 1;
+}
+
+int gui_event_wait(struct gui_event *ev, int timeout_ms) {
+    struct paze_los4_wait w;
+    memset(&w, 0, sizeof(w));
+    w.timeout_ms = (unsigned int)timeout_ms;
+    int r = paze_ioctl(gui_fd, PAZE_LOS4_WAIT_EVENT, &w);
+    if (r <= 0) { ev->type = 0; return 0; }
+    paze_los4_translate(&w.event, ev);
+    return 1;
+}
+
+int gui_window_destroy(int win) {
+    union { void *p; long l; } u;
+    u.l = (long)win;
+    paze_ioctl(gui_fd, PAZE_LOS4_DESTROY_WINDOW, u.p);
+    return 0;
+}
+
+int gui_cleanup(void) { return 0; }
 
 #else
 /* 不支持 GUI 的平台 — 桩实现 */
 int gui_init(void) { return -1; }
-int gui_window_create(const char *title, int width, int height) { return -1; }
+int gui_window_create(const char *title, const char *text, int width, int height) { return -1; }
 int gui_window_text(int win, int x, int y, const char *text, unsigned int fg, unsigned int bg) { return -1; }
 int gui_window_present(int win) { return -1; }
 int gui_event_poll(struct gui_event *ev) { ev->type = 0; return 0; }
@@ -664,8 +833,8 @@ int gui_cleanup(void) { return -1; }
             or "DefWindowProcA" or "DestroyWindow" or "PostQuitMessage"
             or "BeginPaint" or "EndPaint" or "GetDC" or "ReleaseDC" or "InvalidateRect"
             or "SetWindowTextA" => "user32.dll",
-        // gdi32.dll — 文本绘制、颜色
-        "SetTextColor" or "SetBkColor" or "TextOutA" => "gdi32.dll",
+        // gdi32.dll — 文本绘制、颜色、画刷
+        "SetTextColor" or "SetBkColor" or "TextOutA" or "CreateSolidBrush" => "gdi32.dll",
         // dwmapi.dll — Win11 DWM 圆角/暗色模式
         "DwmSetWindowAttribute" => "dwmapi.dll",
         _ => "msvcrt.dll"

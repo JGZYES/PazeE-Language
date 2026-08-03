@@ -5,7 +5,7 @@ namespace PazeE.Compiler.Binary;
 
 /// <summary>LeonOS 4 ELF64 (x86-64) 静态可执行文件写入器。
 /// 无动态链接（无 PLT/GOT/.dynsym/.dynamic/PT_INTERP），运行时函数由 Los4Runtime 静态注入 .text。
-/// 系统调用通过 int 0x80（与 Linux x86_64 同调用号），ELF 布局与 doomlauncher.elf 一致：
+/// 系统调用通过 syscall 指令（0x0F 0x05，寄存器约定同 Linux x86_64），ELF 布局与 doomlauncher.elf 一致：
 /// 3 个 PT_LOAD（.text RX / .rodata R / .data+.bss RW）+ PT_GNU_STACK，基址 0x400000。</summary>
 public sealed class ElfWriterLos4 : IExecutableWriter
 {
@@ -26,7 +26,7 @@ public sealed class ElfWriterLos4 : IExecutableWriter
         var data = new List<byte>(img.Data.Data);
 
         // ---- 2. 静态运行时（先于布局，以便获取 BSS 大小）----
-        var (rtCode, rtOffsets, rdataRefs, bssRefs, rtBssSize) = Los4Runtime.Generate();
+        var (rtCode, rtOffsets, rdataRefs, rdataBinRefs, bssRefs, rtBssSize) = Los4Runtime.Generate();
 
         // BSS = 用户 BSS + 运行时 BSS（gui_fd/gui_win_id 等持久状态）
         int userBssSize = img.Bss.BssSize;
@@ -53,6 +53,24 @@ public sealed class ElfWriterLos4 : IExecutableWriter
                 rdataStrOff[content] = rodata.Count;
                 foreach (char c in content) rodata.Add((byte)c);
                 rodata.Add(0); // null terminator
+            }
+        }
+
+        // ---- 2c. 运行时引用的 .rodata 二进制数据 → 追加到 rodata，记录偏移 ----
+        // 如 PSF 字体数据（FontData 2048 字节），由 paze_font_ptr() 返回其 rodata 地址。
+        var rdataBinOff = new List<(byte[] data, long offset)>();
+        foreach (var (off, binData) in rdataBinRefs)
+        {
+            long binOffset = -1;
+            for (int i = 0; i < rdataBinOff.Count; i++)
+            {
+                if (ReferenceEquals(rdataBinOff[i].data, binData)) { binOffset = rdataBinOff[i].offset; break; }
+            }
+            if (binOffset < 0)
+            {
+                binOffset = rodata.Count;
+                rodata.AddRange(binData);
+                rdataBinOff.Add((binData, binOffset));
             }
         }
 
@@ -113,6 +131,22 @@ public sealed class ElfWriterLos4 : IExecutableWriter
         {
             long strVaddr = rodataVaddr + rdataStrOff[content];
             Write64At(text, rtBase + off, strVaddr);
+        }
+
+        // ---- 运行时 RData 二进制数据引用回填 ----
+        // 运行时代码中 mov r64, &bin 的 8 字节占位 → 填入二进制数据在 .rodata 的虚拟地址
+        foreach (var (off, binData) in rdataBinRefs)
+        {
+            long binOffset = -1;
+            for (int i = 0; i < rdataBinOff.Count; i++)
+            {
+                if (ReferenceEquals(rdataBinOff[i].data, binData)) { binOffset = rdataBinOff[i].offset; break; }
+            }
+            if (binOffset >= 0)
+            {
+                long binVaddr = rodataVaddr + binOffset;
+                Write64At(text, rtBase + off, binVaddr);
+            }
         }
 
         // ---- 运行时 BSS 全局引用回填 ----
@@ -200,12 +234,12 @@ public sealed class ElfWriterLos4 : IExecutableWriter
     {
         Write32At(f, type);
         Write32At(f, flags);
-        Write64At(f, off);
-        Write64At(f, vaddr);
-        Write64At(f, vaddr);   // p_paddr = p_vaddr
-        Write64At(f, filesz);
-        Write64At(f, memsz);
-        Write64At(f, align);
+        int o1 = f.Count; Write64At(f, o1, off);
+        int o2 = f.Count; Write64At(f, o2, vaddr);
+        int o3 = f.Count; Write64At(f, o3, vaddr);   // p_paddr = p_vaddr
+        int o4 = f.Count; Write64At(f, o4, filesz);
+        int o5 = f.Count; Write64At(f, o5, memsz);
+        int o6 = f.Count; Write64At(f, o6, align);
     }
 
     private static long Align(long v, int a) => a <= 1 ? v : (v + a - 1) & ~(long)(a - 1);
