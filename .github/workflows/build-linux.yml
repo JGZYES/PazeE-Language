@@ -10,8 +10,19 @@ on:
 
 jobs:
   build:
-    name: Build paze for Linux x64
-    runs-on: ubuntu-latest
+    name: Build paze for Linux (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 公共仓库可免费使用 ubuntu-24.04-arm 原生 ARM64 runner。
+          - arch: x64
+            runner: ubuntu-latest
+            rid: linux-x64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            rid: linux-arm64
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout
@@ -42,19 +53,19 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Channel: $CHANNEL  Version: $VERSION"
 
-      - name: Publish (self-contained, linux-x64)
+      - name: Publish (self-contained, ${{ matrix.rid }})
         run: |
           dotnet publish src/PazeE.Compiler/PazeE.Compiler.csproj \
             -c Release \
             -p:BuildChannel=${{ steps.meta.outputs.channel }} \
-            -r linux-x64 \
+            -r ${{ matrix.rid }} \
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:EnableCompressionInSingleFile=true
 
       - name: Stage artifacts
         run: |
-          STAGE="staging/paze-${{ steps.meta.outputs.version }}-linux-x64"
+          STAGE="staging/paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}"
           mkdir -p "$STAGE/bin"
           cp -v publish/${{ steps.meta.outputs.version }}/bin/* "$STAGE/bin/" 2>/dev/null || true
           # 单文件模式下 paze 主程序即 paze.dll/paze.exe → 重命名为 paze
@@ -69,26 +80,29 @@ jobs:
           PazeE Compiler
           Version: ${{ steps.meta.outputs.version }}
           Channel: ${{ steps.meta.outputs.channel }}
-          Target:  linux-x64 (self-contained .NET 10)
+          Target:  ${{ matrix.rid }} (self-contained .NET 10)
           Commit:  ${GITHUB_SHA}
           Built:   ${GITHUB_RUN_ID}
           EOF
           # 打包
           cd staging
-          tar -czf ../paze-${{ steps.meta.outputs.version }}-linux-x64.tar.gz *
-          zip -r -q ../paze-${{ steps.meta.outputs.version }}-linux-x64.zip *
+          tar -czf ../paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}.tar.gz *
+          zip -r -q ../paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}.zip *
           cd ..
           ls -lh paze-*.tar.gz paze-*.zip
 
       - name: Smoke test — compile hello.pe
+        env:
+          # arm64 构建用 --arch arm 产出 ARM64 ELF；x64 用默认 AMD64。
+          ARCH_FLAG: ${{ matrix.arch == 'arm64' && '--arch arm' || '' }}
         run: |
-          BIN="staging/paze-${{ steps.meta.outputs.version }}-linux-x64/bin"
+          BIN="staging/paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}/bin"
           if [ -f "$BIN/paze" ]; then
-            "$BIN/paze" tests/hello.pe --target linux -o /tmp/hello.elf
+            "$BIN/paze" tests/hello.pe --target linux $ARCH_FLAG -o /tmp/hello.elf
             file /tmp/hello.elf
             /tmp/hello.elf || true
           elif [ -f "$BIN/paze.dll" ]; then
-            dotnet "$BIN/paze.dll" tests/hello.pe --target linux -o /tmp/hello.elf
+            dotnet "$BIN/paze.dll" tests/hello.pe --target linux $ARCH_FLAG -o /tmp/hello.elf
             file /tmp/hello.elf
             /tmp/hello.elf || true
           else
@@ -99,15 +113,15 @@ jobs:
       - name: Upload artifact (tar.gz)
         uses: actions/upload-artifact@v4
         with:
-          name: paze-${{ steps.meta.outputs.version }}-linux-x64-tar
-          path: paze-${{ steps.meta.outputs.version }}-linux-x64.tar.gz
+          name: paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}-tar
+          path: paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
           if-no-files-found: error
 
       - name: Upload artifact (zip)
         uses: actions/upload-artifact@v4
         with:
-          name: paze-${{ steps.meta.outputs.version }}-linux-x64-zip
-          path: paze-${{ steps.meta.outputs.version }}-linux-x64.zip
+          name: paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}-zip
+          path: paze-${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}.zip
           if-no-files-found: error
 
   release:
