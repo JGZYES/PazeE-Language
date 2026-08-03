@@ -101,11 +101,13 @@ jobs:
           if [ -f "$BIN/paze" ]; then
             "$BIN/paze" tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
             file /tmp/hello.macos
+            chmod +x /tmp/hello.macos
             # macOS 上执行编译产物（Mach-O 原生可执行；x64 经 Rosetta 2）
             /tmp/hello.macos || true
           elif [ -f "$BIN/paze.dll" ]; then
             dotnet "$BIN/paze.dll" tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
             file /tmp/hello.macos
+            chmod +x /tmp/hello.macos
             /tmp/hello.macos || true
           else
             echo "WARN: paze binary not found, listing bin/:"

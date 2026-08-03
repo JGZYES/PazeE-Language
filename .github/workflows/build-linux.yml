@@ -100,10 +100,12 @@ jobs:
           if [ -f "$BIN/paze" ]; then
             "$BIN/paze" tests/hello.pe --target linux $ARCH_FLAG -o /tmp/hello.elf
             file /tmp/hello.elf
+            chmod +x /tmp/hello.elf
             /tmp/hello.elf || true
           elif [ -f "$BIN/paze.dll" ]; then
             dotnet "$BIN/paze.dll" tests/hello.pe --target linux $ARCH_FLAG -o /tmp/hello.elf
             file /tmp/hello.elf
+            chmod +x /tmp/hello.elf
             /tmp/hello.elf || true
           else
             echo "WARN: paze binary not found, listing bin/:"
