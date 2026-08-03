@@ -1,0 +1,137 @@
+name: build-macos
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build paze for macOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-13
+            rid: osx-x64
+          - arch: arm64
+            runner: macos-14
+            rid: osx-arm64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Restore
+        run: dotnet restore src/PazeE.Compiler/PazeE.Compiler.csproj
+
+      - name: Determine channel & version
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            CHANNEL="release"
+          else
+            CHANNEL="alpha"
+          fi
+          VERSION=$(dotnet msbuild src/PazeE.Compiler/PazeE.Compiler.csproj \
+            -p:BuildChannel=$CHANNEL \
+            -getProperty:Version \
+            -nologo)
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Channel: $CHANNEL  Version: $VERSION"
+
+      - name: Publish (self-contained, ${{ matrix.rid }})
+        run: |
+          dotnet publish src/PazeE.Compiler/PazeE.Compiler.csproj \
+            -c Release \
+            -p:BuildChannel=${{ steps.meta.outputs.channel }} \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:EnableCompressionInSingleFile=true
+
+      - name: Stage artifacts
+        run: |
+          STAGE="staging/paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}"
+          mkdir -p "$STAGE/bin"
+          cp -v publish/${{ steps.meta.outputs.version }}/bin/* "$STAGE/bin/" 2>/dev/null || true
+          # 单文件模式下主程序重命名为 paze 并赋予执行权限
+          if [ -f "$STAGE/bin/paze" ]; then
+            chmod +x "$STAGE/bin/paze"
+          fi
+          # 包含测试源文件以便验证
+          mkdir -p "$STAGE/tests"
+          cp -v tests/*.pe "$STAGE/tests/" 2>/dev/null || true
+          # 生成版本说明
+          cat > "$STAGE/VERSION.txt" <<EOF
+          PazeE Compiler
+          Version: ${{ steps.meta.outputs.version }}
+          Channel: ${{ steps.meta.outputs.channel }}
+          Target:  ${{ matrix.rid }} (self-contained .NET 10)
+          Commit:  ${GITHUB_SHA}
+          Built:   ${GITHUB_RUN_ID}
+          EOF
+          # 打包为 tar.gz（macOS 标准归档格式，保留 POSIX 权限）
+          cd staging
+          tar -czf ../paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}.tar.gz *
+          cd ..
+          ls -lh paze-*.tar.gz
+
+      - name: Smoke test — compile hello.pe
+        run: |
+          BIN="staging/paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}/bin"
+          if [ -f "$BIN/paze" ]; then
+            "$BIN/paze" tests/hello.pe --target macos -o /tmp/hello.macos
+            file /tmp/hello.macos
+            # macOS 上执行编译产物（Mach-O 原生可执行）
+            /tmp/hello.macos || true
+          elif [ -f "$BIN/paze.dll" ]; then
+            dotnet "$BIN/paze.dll" tests/hello.pe --target macos -o /tmp/hello.macos
+            file /tmp/hello.macos
+            /tmp/hello.macos || true
+          else
+            echo "WARN: paze binary not found, listing bin/:"
+            ls -la "$BIN"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}
+          path: paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release (macOS)
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PazeE ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.tar.gz

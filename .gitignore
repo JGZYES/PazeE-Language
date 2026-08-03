@@ -28,3 +28,6 @@ tests/*
 !tests/*.h
 !tests/*.ps1
 !tests/*.md
+
+# 根目录杂散编译产物（paze 直接输出到当前目录时）
+/gui
