@@ -16,6 +16,10 @@ internal static class MachOCodeSignature
     private const byte CS_HASHTYPE_SHA256 = 2;
     private const byte CS_HASHSIZE_SHA256 = 32;
     private const string DefaultIdentifier = "paze-compiled";
+    // CodeDirectory flags：CS_ADHOC=0x2 表示无证书的临时签名（codesign -s - 生成）。
+    // 缺少此位时 codesign 视为需要真实 CMS 证书签名，找不到签名 blob 即判
+    // "code object is not signed at all"，macOS 内核执行时直接 SIGKILL（exit 137）。
+    private const uint CS_ADHOC = 0x2;
 
     // CodeDirectory 固定部分（version 0x20001，无 scatterOffset/teamOffset）
     private const int CdFixedLen = 44;
@@ -49,7 +53,7 @@ internal static class MachOCodeSignature
         Write32BE(cd, CSMAGIC_CODEDIRECTORY);    // magic
         Write32BE(cd, (uint)cdLength);            // length
         Write32BE(cd, 0x20001);                   // version
-        Write32BE(cd, 0);                         // flags (ad-hoc)
+        Write32BE(cd, CS_ADHOC);                  // flags：ad-hoc 签名（无证书）
         Write32BE(cd, (uint)hashOffset);          // hashOffset
         Write32BE(cd, (uint)identOffset);         // identOffset
         Write32BE(cd, 0);                         // nSpecialSlots
