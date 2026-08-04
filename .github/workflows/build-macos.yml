@@ -128,6 +128,21 @@ jobs:
           echo "paze-generated:"; codesign -d /tmp/hello.macos 2>&1 || true
           echo "system-signed:"; codesign -d /tmp/hello_resigned.macos 2>&1 || true
 
+          # 空 main 测试：排除 printf/外部符号问题
+          echo "=== empty main test (no externals) ==="
+          $PAZE tests/empty.pe --target macos $ARCH_FLAG -o /tmp/empty.macos
+          file /tmp/empty.macos
+          chmod +x /tmp/empty.macos
+          /tmp/empty.macos 2>&1; echo "empty exit code: $?"
+
+          # AMFI 内核日志
+          echo "=== AMFI kernel log (last 30s) ==="
+          log show --predicate 'sender == "amfid" OR sender == "AppleMobileFileIntegrity"' --last 30s 2>&1 | tail -20 || true
+
+          # dyld 调试输出
+          echo "=== dyld debug (hello.macos) ==="
+          DYLD_PRINT_LIBRARIES=1 DYLD_PRINT_BINDINGS=1 /tmp/hello.macos 2>&1 | head -20; echo "dyld exit: $?"
+
           exit 0
 
       - name: Dump Mach-O load commands
@@ -137,10 +152,10 @@ jobs:
           otool -L /tmp/hello.macos 2>&1 || true
           echo "=== otool -l (load commands) ==="
           otool -l /tmp/hello.macos 2>&1 | head -150 || true
-          echo "=== pagestop / segments ==="
-          otool -l /tmp/hello.macos 2>&1 | grep -A4 "LC_SEGMENT_64" || true
           echo "=== dyld_info ==="
           dyld_info /tmp/hello.macos 2>&1 || true
+          echo "=== dyld_info symbols ==="
+          dyld_info -symbols /tmp/hello.macos 2>&1 || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
