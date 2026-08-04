@@ -33,6 +33,7 @@ public sealed class MachOWriterArm64 : IExecutableWriter
     private const uint LC_MAIN = 0x80000028;
     private const uint LC_CODE_SIGNATURE = 0x1D;
     private const uint LC_BUILD_VERSION = 0x32;
+    private const uint LC_UUID = 0x1B;
     private const int VM_PROT_READ = 1, VM_PROT_WRITE = 2, VM_PROT_EXECUTE = 4;
     private const int S_NON_LAZY_SYMBOL_POINTERS = 0x06;
     private const byte N_EXT = 0x01, N_SECT = 0x0e;
@@ -141,8 +142,9 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         int lcDysymtab = 80;
         int lcCodeSig = 16; // linkedit_data_command（cmd+cmdsize+dataoff+datasize）
         int lcBuildVer = 24; // build_version_command（cmd+cmdsize+platform+minos+sdk+ntools）
-        int sizeofcmds = segTextCmd + segDataCmd + segLinkCmd + lcDylinker + lcDylib + lcMain + lcSymtab + lcDysymtab + lcCodeSig + lcBuildVer;
-        int ncmds = 10;
+        int lcUuid = 24;     // uuid_command（cmd+cmdsize+uuid[16]）
+        int sizeofcmds = segTextCmd + segDataCmd + segLinkCmd + lcDylinker + lcDylib + lcMain + lcSymtab + lcDysymtab + lcCodeSig + lcBuildVer + lcUuid;
+        int ncmds = 11;
 
         int headerSize = 32;
         int textFileOff = headerSize + sizeofcmds;
@@ -168,10 +170,12 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         long linkSegFileOff = Align(dataSegFileEnd, Page);
         long linkSegVmaddr = Align(dataSegVmEnd, Page);
 
+        // LINKEDIT 内布局：bind, symtab, indirect, strtab —— 每个数据结构 8 字节对齐，
+        // 否则 dyld 报 "mis-aligned LINKEDIT content" 并拒绝加载（SIGKILL）。
         long bindOff = linkSegFileOff;
-        long symtabOff = bindOff + bind.Count;
-        long indirectOff = symtabOff + symtab.Count;
-        long strtabOff = indirectOff + indirect.Count;
+        long symtabOff = Align(bindOff + bind.Count, 8);
+        long indirectOff = Align(symtabOff + symtab.Count, 8);
+        long strtabOff = Align(indirectOff + indirect.Count, 8);
         // 代码签名（ad-hoc）：16 字节对齐后附加到 __LINKEDIT 末尾
         long sigOff = Align(strtabOff + strtab.Count, 16);
         int codeLimit = (int)sigOff;
@@ -263,7 +267,8 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         Write32At(f2, 0); // reserved
 
         // ---- LC_SEGMENT_64 __TEXT ----
-        long textSegVmsize = textSegVmEnd - TextVmaddr;
+        // vmsize 必须页对齐（4096 倍数），内核按页映射内存，非页对齐 vmsize 会被 AMFI 拒绝。
+        long textSegVmsize = Align(textSegVmEnd, Page) - TextVmaddr;
         WriteSegment64(f2, "__TEXT", TextVmaddr, textSegVmsize, 0, textSegFileEnd, VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_READ | VM_PROT_EXECUTE, 3);
         WriteSection64(f2, "__text", "__TEXT", textVmaddr, text.Count, textFileOff, 4, 0, 0);
         WriteSection64(f2, "__stubs", "__TEXT", stubsVmaddr, text.Count - stubsOff, textFileOff + stubsOff, 0, 0, 0);
@@ -339,6 +344,12 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         Write32At(f2, 0x000E0000);    // sdk = macOS 14.0.0
         Write32At(f2, 0);             // ntools = 0
 
+        // ---- LC_UUID ----（macOS dyld 要求，缺失则 dyld_info 报 "missing LC_UUID"）
+        byte[] uuid = Guid.NewGuid().ToByteArray();
+        Write32At(f2, LC_UUID);
+        Write32At(f2, 24);            // cmdsize
+        f2.AddRange(uuid);            // 16 字节 UUID
+
         // ---- LC_CODE_SIGNATURE ----
         Write32At(f2, LC_CODE_SIGNATURE);
         Write32At(f2, 16);                    // cmdsize (linkedit_data_command)
@@ -354,11 +365,14 @@ public sealed class MachOWriterArm64 : IExecutableWriter
         f2.AddRange(got);
         f2.AddRange(data);
 
-        // ---- __LINKEDIT 段数据 ----
+        // ---- __LINKEDIT 段数据 ----（各子表之间 8 字节对齐填充）
         while (f2.Count < linkSegFileOff) f2.Add(0);
         f2.AddRange(bind);
+        while (f2.Count < symtabOff) f2.Add(0);
         f2.AddRange(symtab);
+        while (f2.Count < indirectOff) f2.Add(0);
         f2.AddRange(indirect);
+        while (f2.Count < strtabOff) f2.Add(0);
         f2.AddRange(strtab);
         // 代码签名（ad-hoc SHA-256）：对文件 [0..codeLimit) 逐页哈希
         while (f2.Count < sigOff) f2.Add(0);
