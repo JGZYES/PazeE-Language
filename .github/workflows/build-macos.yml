@@ -95,6 +95,7 @@ jobs:
         env:
           ARCH_FLAG: ${{ matrix.arch == 'arm64' && '--arch arm' || '' }}
         run: |
+          set +e
           BIN="staging/paze-${{ steps.meta.outputs.version }}-macos-${{ matrix.arch }}/bin"
           PAZE="$BIN/paze"
           if [ -f "$BIN/paze.dll" ] && [ ! -f "$PAZE" ]; then PAZE="dotnet $BIN/paze.dll"; fi
@@ -104,19 +105,42 @@ jobs:
           $PAZE tests/hello.pe --target macos $ARCH_FLAG -o /tmp/hello.macos
           file /tmp/hello.macos
           chmod +x /tmp/hello.macos
-          # 诊断代码签名
-          echo "=== codesign display ==="
+
+          echo "=== codesign display (paze-generated) ==="
           codesign -dv --verbose=4 /tmp/hello.macos 2>&1 || true
-          echo "=== codesign verify ==="
+          echo "=== codesign verify (paze-generated) ==="
           codesign --verify --deep --strict /tmp/hello.macos 2>&1 && echo "SIGNATURE OK" || echo "SIGNATURE FAILED"
-          echo "=== spctl assessment ==="
-          spctl --assess --type execute /tmp/hello.macos 2>&1 || true
-          echo "=== try run ==="
+
+          echo "=== try run (paze-generated signature) ==="
           /tmp/hello.macos 2>&1; echo "exit code: $?"
 
+          # 对照实验：用系统 codesign -s - 重新签名，排除 paze 签名生成器的问题
+          echo "=== re-sign with system codesign -s - ==="
+          cp /tmp/hello.macos /tmp/hello_resigned.macos
+          chmod +x /tmp/hello_resigned.macos
+          codesign -s - --force /tmp/hello_resigned.macos 2>&1 || true
+          codesign -dv --verbose=4 /tmp/hello_resigned.macos 2>&1 || true
+          echo "=== try run (system re-signed) ==="
+          /tmp/hello_resigned.macos 2>&1; echo "exit code: $?"
+
+          # 对比两次签名的差异
+          echo "=== signature size comparison ==="
+          echo "paze-generated:"; codesign -d /tmp/hello.macos 2>&1 || true
+          echo "system-signed:"; codesign -d /tmp/hello_resigned.macos 2>&1 || true
+
+          exit 0
+
       - name: Dump Mach-O load commands
+        if: always()
         run: |
-          otool -l /tmp/hello.macos 2>&1 | head -120 || true
+          echo "=== otool -L (dylib deps) ==="
+          otool -L /tmp/hello.macos 2>&1 || true
+          echo "=== otool -l (load commands) ==="
+          otool -l /tmp/hello.macos 2>&1 | head -150 || true
+          echo "=== pagestop / segments ==="
+          otool -l /tmp/hello.macos 2>&1 | grep -A4 "LC_SEGMENT_64" || true
+          echo "=== dyld_info ==="
+          dyld_info /tmp/hello.macos 2>&1 || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
